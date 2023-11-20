@@ -1,4 +1,9 @@
+# IDE features
 .idea
 .vscode
 
+#Diagrams files
 *.bkp
+
+#Go shenanigans
+/pkg
