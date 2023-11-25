@@ -17,7 +17,15 @@ func main() {
 		log.Fatal("Fetching peers names: " + err.Error())
 	}
 
-	addresses, err := rest.GetPeerAddresses(ENDPOINT, peers[0])
+	serverIndex := 0
+	for i := 0; i < len(peers); i++ {
+		if peers[i] == "jch.irif.fr" {
+			serverIndex = i
+			break
+		}
+	}
+
+	addresses, err := rest.GetPeerAddresses(ENDPOINT, peers[serverIndex])
 	if err != nil {
 		log.Fatal("Fetching peer addresses: " + err.Error())
 	}
