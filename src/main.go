@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"protocoles-internet-2023/rest"
 	udptypes "protocoles-internet-2023/udp"
+	"time"
 )
 
 var ENDPOINT = "https://jch.irif.fr:8443"
@@ -45,51 +45,20 @@ func main() {
 		Body:   msgBody,
 	}
 
-	err = socket.SendPacket(distantAddr, msg)
-	if err != nil {
-		log.Fatal("SendPacket " + err.Error())
-	}
+	scheduler := udptypes.NewScheduler()
+	go scheduler.Launch(socket)
 
-	response, err := socket.ReceivePacket()
-	if err != nil {
-		log.Fatal("ReceivePacket " + err.Error())
-	}
-	if response.Type != udptypes.HelloReply {
-		log.Fatal("Wrong response received")
-	}
+	scheduler.Enqueue(msg, distantAddr)
+	time.Sleep(time.Second * 1)
 
-	//Receive PublicKey
-	pack, err := socket.ReceivePacket()
-	if err != nil {
-		log.Fatal(err)
-	}
-	if pack.Type != udptypes.PublicKey {
-		log.Fatal("Wrong message received")
-	}
-
-	publicKeyResponseMessage := udptypes.UDPMessage{
-		Id:     pack.Id,
+	msg = udptypes.UDPMessage{
+		Id:     10985,
 		Type:   udptypes.PublicKeyReply,
 		Length: 0,
 	}
+	scheduler.Enqueue(msg, distantAddr)
+	for range time.Tick(time.Second * 10) {
 
-	err = socket.SendPacket(distantAddr, publicKeyResponseMessage)
-	if err != nil {
-		log.Fatal("Send Public Key response" + err.Error())
-	}
-
-	//Root exchange
-	pack, err = socket.ReceivePacket()
-	if err != nil {
-		log.Fatal(err)
-	}
-	if pack.Type != udptypes.Root {
-		fmt.Println("Wrond message received")
-	}
-
-	_ = udptypes.UDPMessage{
-		Id:   pack.Id,
-		Type: udptypes.RootReply,
 	}
 
 }

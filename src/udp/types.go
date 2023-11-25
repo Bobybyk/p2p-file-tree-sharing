@@ -1,5 +1,11 @@
 package udptypes
 
+import (
+	"net"
+	"sync"
+	"time"
+)
+
 const (
 	NoOp                uint8 = 0
 	Error                     = 1
@@ -34,4 +40,23 @@ type HelloBody struct {
 type DatumBody struct {
 	Hash  string
 	Value []byte
+}
+
+type UDPSock struct {
+	Socket *net.UDPConn
+}
+
+type SchedulerEntry struct {
+	Time   time.Time
+	To     *net.UDPAddr
+	From   *net.UDPAddr
+	Packet UDPMessage
+}
+
+type Scheduler struct {
+	Lock           sync.Mutex
+	PacketReceiver chan SchedulerEntry
+	PacketSender   chan SchedulerEntry
+	Sent           []SchedulerEntry
+	Received       []SchedulerEntry
 }
