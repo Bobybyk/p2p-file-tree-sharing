@@ -39,7 +39,7 @@ func main() {
 	}.HelloBodyToBytes()
 
 	msg := udptypes.UDPMessage{
-		Id:     0,
+		Id:     120984,
 		Type:   udptypes.Hello,
 		Length: uint16(len(msgBody)),
 		Body:   msgBody,
@@ -48,15 +48,15 @@ func main() {
 	scheduler := udptypes.NewScheduler()
 	go scheduler.Launch(socket)
 
-	scheduler.Enqueue(msg, distantAddr)
-	time.Sleep(time.Second * 1)
+	scheduler.Enqueue(msg, distantAddr) /*
+		time.Sleep(time.Second * 1)
 
-	msg = udptypes.UDPMessage{
-		Id:     10985,
-		Type:   udptypes.PublicKeyReply,
-		Length: 0,
-	}
-	scheduler.Enqueue(msg, distantAddr)
+		msg = udptypes.UDPMessage{
+			Id:     10985,
+			Type:   udptypes.PublicKeyReply,
+			Length: 0,
+		}
+		scheduler.Enqueue(msg, distantAddr)*/
 	for range time.Tick(time.Second * 10) {
 
 	}
