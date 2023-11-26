@@ -26,7 +26,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		sched.PeerDatabase[from.String()] = PeerInfo{Name: body.Name}
 	}
 
-	//if the user is not present in the database
+	//if the user is not present in the database, ignore the message as it did not complete handshake
 	peer, ok := sched.PeerDatabase[from.String()]
 	if !ok {
 		if config.Debug {
@@ -40,10 +40,12 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 	//otherwise handle the messages
 	switch received.Type {
 	case NoOp:
+		//TODO
 		if config.Debug {
 			fmt.Println("NoOp from: " + peer.Name)
 		}
 	case Error:
+		//TODO
 		if config.Debug {
 			fmt.Println("Error from: " + peer.Name)
 		}
@@ -58,27 +60,32 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			fmt.Println("PublicKey from: " + peer.Name)
 		}
 	case Root:
+		//TODO
 		if config.Debug {
 			fmt.Println("Root from: " + peer.Name)
 		}
 	case GetDatum:
+		//TODO
 		if config.Debug {
 			fmt.Println("Getdatum from: " + peer.Name)
 		}
 	case HelloReply:
-		//sched.SendHelloReply(distantPeer, received.Id)
+		//TODO
 		if config.Debug {
 			fmt.Println("HelloReply From: " + peer.Name)
 		}
 	case PublicKeyReply:
+		//TODO
 		if config.Debug {
 			fmt.Println("PublicKey from: " + peer.Name)
 		}
 	case RootReply:
+		//TODO
 		if config.Debug {
 			fmt.Println("RootReply from: " + peer.Name)
 		}
 	case Datum:
+		//TODO
 		if config.Debug {
 			fmt.Println("Datum from: " + peer.Name)
 		}
