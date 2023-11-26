@@ -1,6 +1,7 @@
 package udptypes
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"net"
 	"protocoles-internet-2023/config"
@@ -55,12 +56,24 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			fmt.Println("Hello from: " + peer.Name)
 		}
 	case PublicKey:
+		if received.Length != 0 {
+			peerEdit := sched.PeerDatabase[distantPeer.String()]
+			peerEdit.PublicKey = received.Body
+			sched.PeerDatabase[distantPeer.String()] = peerEdit
+		} else {
+			peerEdit := sched.PeerDatabase[distantPeer.String()]
+			peerEdit.PublicKey = nil
+			sched.PeerDatabase[distantPeer.String()] = peerEdit
+		}
 		sched.SendPublicKeyReply(distantPeer, received.Id)
 		if config.Debug {
 			fmt.Println("PublicKey from: " + peer.Name)
 		}
 	case Root:
-		//TODO
+		peerEdit := sched.PeerDatabase[distantPeer.String()]
+		peerEdit.Root = [32]byte(received.Body)
+		sched.PeerDatabase[distantPeer.String()] = peerEdit
+		sched.SendRootReply(distantPeer, received.Id)
 		if config.Debug {
 			fmt.Println("Root from: " + peer.Name)
 		}
@@ -105,7 +118,7 @@ func (sched *Scheduler) Launch(sock *UDPSock) {
 	}
 
 	for {
-		received, from, _, timeout := sock.ReceivePacket(time.Millisecond * 100)
+		received, from, _, timeout := sock.ReceivePacket(time.Second * 1)
 		if !timeout {
 			sched.HandleReceive(received, from)
 		} else if timeout && config.DebugSpam {
@@ -180,6 +193,23 @@ func (sched *Scheduler) SendPublicKeyReply(dest *net.UDPAddr, id uint32) {
 
 	if config.Debug {
 		fmt.Println("PublicKeyReply sent to: " + sched.PeerDatabase[dest.String()].Name)
+	}
+}
+
+func (sched *Scheduler) SendRootReply(dest *net.UDPAddr, id uint32) {
+
+	emptyHash := sha256.Sum256([]byte(""))
+
+	msg := UDPMessage{
+		Id:     id,
+		Type:   RootReply,
+		Length: 32,
+		Body:   emptyHash[:],
+	}
+	sched.Enqueue(msg, dest)
+
+	if config.Debug {
+		fmt.Println("RootReply sent to: " + sched.PeerDatabase[dest.String()].Name)
 	}
 }
 

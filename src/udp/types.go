@@ -60,5 +60,7 @@ type Scheduler struct {
 }
 
 type PeerInfo struct {
-	Name string
+	Name      string
+	PublicKey []byte
+	Root      [32]byte
 }

@@ -2,11 +2,11 @@ package main
 
 import (
 	"log"
+	"math/rand"
 	"net"
 	"protocoles-internet-2023/config"
 	"protocoles-internet-2023/rest"
 	udptypes "protocoles-internet-2023/udp"
-	"time"
 )
 
 var ENDPOINT = "https://jch.irif.fr:8443"
@@ -48,7 +48,7 @@ func main() {
 	}.HelloBodyToBytes()
 
 	msg := udptypes.UDPMessage{
-		Id:     120984,
+		Id:     uint32(rand.Int31()),
 		Type:   udptypes.Hello,
 		Length: uint16(len(msgBody)),
 		Body:   msgBody,
@@ -58,5 +58,7 @@ func main() {
 
 	go scheduler.Launch(socket)
 	scheduler.Enqueue(msg, distantAddr)
-	time.Sleep(time.Second * 1000)
+	for {
+		
+	}
 }
