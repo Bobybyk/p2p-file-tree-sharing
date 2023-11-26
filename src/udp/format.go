@@ -8,13 +8,12 @@ func (bytes UDPMessageBytes) BytesToMessage() UDPMessage {
 	udpMsg.Type = bytes[4]
 	udpMsg.Length = uint16(int(bytes[5])*256 + int(bytes[6]))
 
-	/*
-		udpMsg.Body = make([]byte, udpMsg.Length)
-		for i := 0; i < int(udpMsg.Length); i++ {
-			udpMsg.Body[i] = bytes[i+7]
-		}
-	*/
-	udpMsg.Body = bytes[7:]
+	udpMsg.Body = make([]byte, udpMsg.Length)
+	for i := 0; i < int(udpMsg.Length); i++ {
+		udpMsg.Body[i] = bytes[i+8]
+	}
+
+	//udpMsg.Body = bytes[7:]
 
 	return udpMsg
 }
@@ -39,7 +38,7 @@ func (udpMsg UDPMessage) MessageToBytes() UDPMessageBytes {
 	return bytes
 }
 
-func (bytes UDPMessageBytes) BytesToHelloBody() HelloBody {
+func BytesToHelloBody(bytes []byte) HelloBody {
 	body := HelloBody{}
 
 	body.Extensions += int32(bytes[0])*(1<<24) + (int32(bytes[1]) * (1 << 16)) + (int32(bytes[2]) * (1 << 8)) + int32(bytes[3])

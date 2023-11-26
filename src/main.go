@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"protocoles-internet-2023/config"
 	"protocoles-internet-2023/rest"
 	udptypes "protocoles-internet-2023/udp"
 	"time"
@@ -43,7 +44,7 @@ func main() {
 	//Hello + HelloReply
 	msgBody := udptypes.HelloBody{
 		Extensions: 0,
-		Name:       "ogu",
+		Name:       config.ClientName,
 	}.HelloBodyToBytes()
 
 	msg := udptypes.UDPMessage{
@@ -54,19 +55,8 @@ func main() {
 	}
 
 	scheduler := udptypes.NewScheduler()
+
 	go scheduler.Launch(socket)
-
-	scheduler.Enqueue(msg, distantAddr) /*
-		time.Sleep(time.Second * 1)
-
-		msg = udptypes.UDPMessage{
-			Id:     10985,
-			Type:   udptypes.PublicKeyReply,
-			Length: 0,
-		}
-		scheduler.Enqueue(msg, distantAddr)*/
-	for range time.Tick(time.Second * 10) {
-
-	}
-
+	scheduler.Enqueue(msg, distantAddr)
+	time.Sleep(time.Second * 1000)
 }

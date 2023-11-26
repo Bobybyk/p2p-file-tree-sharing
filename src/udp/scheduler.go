@@ -4,30 +4,103 @@ import (
 	"fmt"
 	"net"
 	"protocoles-internet-2023/config"
+	"strconv"
 	"time"
 )
 
+/*
+Scheduler "constructor"
+*/
 func NewScheduler() *Scheduler {
 	return &Scheduler{
-		PacketReceiver: make(chan SchedulerEntry),
-		PacketSender:   make(chan SchedulerEntry),
+		PeerDatabase: make(map[string]PeerInfo),
+		PacketSender: make(chan SchedulerEntry),
 	}
 }
 
+func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
+
+	//register user in the database
+	if received.Type == HelloReply || received.Type == Hello {
+		body := BytesToHelloBody(received.Body)
+		sched.PeerDatabase[from.String()] = PeerInfo{Name: body.Name}
+	}
+
+	//if the user is not present in the database
+	peer, ok := sched.PeerDatabase[from.String()]
+	if !ok {
+		if config.Debug {
+			fmt.Println("Ignored Message from " + from.String() + " (did not complete handshake)")
+		}
+		return
+	}
+
+	distantPeer, _ := net.ResolveUDPAddr("udp", from.String())
+
+	//otherwise handle the messages
+	switch received.Type {
+	case NoOp:
+		if config.Debug {
+			fmt.Println("NoOp from: " + peer.Name)
+		}
+	case Error:
+		if config.Debug {
+			fmt.Println("Error from: " + peer.Name)
+		}
+	case Hello:
+		sched.SendHelloReply(distantPeer, received.Id)
+		if config.Debug {
+			fmt.Println("Hello from: " + peer.Name)
+		}
+	case PublicKey:
+		sched.SendPublicKeyReply(distantPeer, received.Id)
+		if config.Debug {
+			fmt.Println("PublicKey from: " + peer.Name)
+		}
+	case Root:
+		if config.Debug {
+			fmt.Println("Root from: " + peer.Name)
+		}
+	case GetDatum:
+		if config.Debug {
+			fmt.Println("Getdatum from: " + peer.Name)
+		}
+	case HelloReply:
+		//sched.SendHelloReply(distantPeer, received.Id)
+		if config.Debug {
+			fmt.Println("HelloReply From: " + peer.Name)
+		}
+	case PublicKeyReply:
+		if config.Debug {
+			fmt.Println("PublicKey from: " + peer.Name)
+		}
+	case RootReply:
+		if config.Debug {
+			fmt.Println("RootReply from: " + peer.Name)
+		}
+	case Datum:
+		if config.Debug {
+			fmt.Println("Datum from: " + peer.Name)
+		}
+	default:
+		fmt.Println(received.Type)
+	}
+}
+
+/*
+	This function manages all I/O on the socket
+
+It automatically receives packets, performs a treatment then sends all pending packets
+*/
 func (sched *Scheduler) Launch(sock *UDPSock) {
 	if config.DebugSpam {
 		fmt.Println("Launching scheduler")
 	}
 
-	go sched.HandleReceive()
-
 	for {
-		received, _, timeout := sock.ReceivePacket(time.Second * 1)
+		received, from, _, timeout := sock.ReceivePacket(time.Millisecond * 100)
 		if !timeout {
-			entry := SchedulerEntry{
-				Packet: received,
-			}
-			sched.PacketReceiver <- entry
+			sched.HandleReceive(received, from)
 		} else if timeout && config.DebugSpam {
 			fmt.Println("UDP Receive timeout")
 		}
@@ -36,20 +109,11 @@ func (sched *Scheduler) Launch(sock *UDPSock) {
 		case msgToSend := <-sched.PacketSender:
 			err := sock.SendPacket(msgToSend.To, msgToSend.Packet)
 			if err == nil {
-				sched.Lock.Lock()
-				//sched.Sent = append(sched.Sent, msgToSend)
-				sched.Lock.Unlock()
-
 				if config.Debug {
-					fmt.Println("Message received from socket")
+					fmt.Println("Message sent on socket")
 				}
-
 			}
-
-			if config.Debug {
-				fmt.Println("Message sent on socket")
-			}
-		default:
+		default: //if there is nothing to read yet, do not block
 			if config.DebugSpam {
 				fmt.Println("Nothing to send on socket")
 			}
@@ -58,33 +122,63 @@ func (sched *Scheduler) Launch(sock *UDPSock) {
 
 }
 
+/*
+This function signals to the Launch function that a packet is waiting to be sent
+*/
 func (sched *Scheduler) Enqueue(message UDPMessage, dest *net.UDPAddr) {
-	entry := SchedulerEntry{
-		To:     dest,
-		Packet: message,
+
+	//Must be launched in a goroutine to allow Launch to get back to reading on channel
+	go func() {
+		entry := SchedulerEntry{
+			To:     dest,
+			Packet: message,
+		}
+		sched.PacketSender <- entry
+
+		if config.Debug {
+			fmt.Println("Message sent on channel")
+		}
+	}()
+}
+
+func (sched *Scheduler) SendHelloReply(dest *net.UDPAddr, id uint32) {
+	body := HelloBody{
+		Name:       config.ClientName,
+		Extensions: 0,
+	}.HelloBodyToBytes()
+	msg := UDPMessage{
+		Id:     id,
+		Type:   HelloReply,
+		Length: uint16(len(body)),
+		Body:   body,
 	}
-	sched.PacketSender <- entry
+	sched.Enqueue(msg, dest)
 
 	if config.Debug {
-		fmt.Println("Message sent on channel")
+		fmt.Println("HelloReply sent to: " + sched.PeerDatabase[dest.String()].Name)
 	}
 }
 
-func (sched *Scheduler) HandleReceive() {
+/*
+Tells the peer that no encryption method is used (hardcoded, to change if encryption is implemented later)
+*/
+func (sched *Scheduler) SendPublicKeyReply(dest *net.UDPAddr, id uint32) {
+
+	msg := UDPMessage{
+		Id:     id,
+		Type:   PublicKeyReply,
+		Length: 0,
+	}
+	sched.Enqueue(msg, dest)
+
 	if config.Debug {
-		fmt.Println("Launched receiver")
+		fmt.Println("PublicKeyReply sent to: " + sched.PeerDatabase[dest.String()].Name)
 	}
+}
 
-	for {
-		received := <-sched.PacketReceiver
-
-		if config.Debug {
-			fmt.Println("Message received from channel")
-		}
-
-		sched.Lock.Lock()
-		//sched.Received = append(sched.Received, received)
-		sched.Lock.Unlock()
-		fmt.Println(received.Packet.Type)
-	}
+/*
+Pretty printing for a SchedulerEntry
+*/
+func (entry SchedulerEntry) String() string {
+	return "From: " + entry.From.String() + "\n\t@ " + entry.Time.String() + "\nType:" + strconv.Itoa(int(entry.Packet.Type))
 }

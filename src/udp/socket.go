@@ -29,7 +29,7 @@ func (sock *UDPSock) SendPacket(addr *net.UDPAddr, pack UDPMessage) error {
 	return err
 }
 
-func (sock *UDPSock) ReceivePacket(timeout time.Duration) (UDPMessage, error, bool) {
+func (sock *UDPSock) ReceivePacket(timeout time.Duration) (UDPMessage, net.Addr, error, bool) {
 
 	// (id + type + length) + body max size + signature + 1
 	size := 7 + (1 << 32) + 64 + 1
@@ -38,12 +38,12 @@ func (sock *UDPSock) ReceivePacket(timeout time.Duration) (UDPMessage, error, bo
 
 	err := sock.Socket.SetReadDeadline(time.Now().Add(timeout))
 	if err != nil {
-		return UDPMessage{}, err, false
+		return UDPMessage{}, nil, err, false
 	}
 
-	sizeReceived, _, err := sock.Socket.ReadFrom(received)
+	sizeReceived, from, err := sock.Socket.ReadFrom(received)
 	if err != nil {
-		return UDPMessage{}, nil, true
+		return UDPMessage{}, nil, nil, true
 	}
 	if err == nil && sizeReceived == size {
 		err = errors.New("message truncated")
@@ -51,5 +51,5 @@ func (sock *UDPSock) ReceivePacket(timeout time.Duration) (UDPMessage, error, bo
 
 	msg := received.BytesToMessage()
 
-	return msg, err, false
+	return msg, from, err, false
 }

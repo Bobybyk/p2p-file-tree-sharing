@@ -49,14 +49,16 @@ type UDPSock struct {
 type SchedulerEntry struct {
 	Time   time.Time
 	To     *net.UDPAddr
-	From   *net.UDPAddr
+	From   net.Addr
 	Packet UDPMessage
 }
 
 type Scheduler struct {
-	Lock           sync.Mutex
-	PacketReceiver chan SchedulerEntry
-	PacketSender   chan SchedulerEntry
-	Sent           []SchedulerEntry
-	Received       []SchedulerEntry
+	Lock         sync.Mutex
+	PacketSender chan SchedulerEntry
+	PeerDatabase map[string]PeerInfo
+}
+
+type PeerInfo struct {
+	Name string
 }
