@@ -32,7 +32,7 @@ func (sock *UDPSock) SendPacket(addr *net.UDPAddr, pack UDPMessage) error {
 func (sock *UDPSock) ReceivePacket(timeout time.Duration) (UDPMessage, net.Addr, error, bool) {
 
 	// (id + type + length) + body max size + signature + 1
-	size := 7 + (1 << 32) + 64 + 1
+	size := 7 + (1 << 16) + 64 + 1
 
 	received := make(UDPMessageBytes, size)
 

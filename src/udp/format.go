@@ -68,17 +68,15 @@ func (body HelloBody) HelloBodyToBytes() UDPMessageBytes {
 	return bytes
 }
 
-func (bytes UDPMessageBytes) BytesToDatumBody() DatumBody {
+func BytesToDatumBody(bytes UDPMessageBytes) DatumBody {
 	body := DatumBody{}
 
 	body.Hash = string(bytes[:32])
 
-	/*
-		for i := 0; i < len(bytes)-32; i++ {
-			body.Value[i] = bytes[i+32]
-		}
-	*/
-	body.Value = bytes[32 : len(bytes)-32]
+	/*for i := 0; i < len(bytes)-32; i++ {
+		body.Value[i] = bytes[i+32]
+	}*/
+	body.Value = bytes[32:]
 
 	return body
 }

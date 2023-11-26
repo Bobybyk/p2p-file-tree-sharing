@@ -20,6 +20,7 @@ const (
 	PublicKeyReply            = 130
 	RootReply                 = 131
 	Datum                     = 132
+	NoDatum                   = 133
 )
 
 type UDPMessageBytes []byte

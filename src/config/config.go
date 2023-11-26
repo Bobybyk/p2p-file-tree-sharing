@@ -1,6 +1,6 @@
 package config
 
-var Debug = false
+var Debug = true
 var DebugSpam = false
 var ClientName = "ogu"
 

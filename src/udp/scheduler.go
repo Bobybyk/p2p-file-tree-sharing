@@ -98,9 +98,26 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			fmt.Println("RootReply from: " + peer.Name)
 		}
 	case Datum:
-		//TODO
+		body := BytesToDatumBody(received.Body)
 		if config.Debug {
 			fmt.Println("Datum from: " + peer.Name)
+			switch body.Value[0] {
+			case 0:
+				fmt.Println("Received Chunk")
+			case 1:
+				fmt.Println("Received BigFile")
+			case 2:
+				fmt.Println("Received Directory")
+				fmt.Println("Number of files: " + (strconv.Itoa((len(body.Value) - 1) / 64)))
+				for i := 1; i < len(body.Value); i += 64 {
+					fmt.Println(string(body.Value[i : i+32]))
+				}
+			}
+		}
+	case NoDatum:
+		//TODO
+		if config.Debug {
+			fmt.Println("NoDatum from: " + peer.Name)
 		}
 	default:
 		fmt.Println(received.Type)
