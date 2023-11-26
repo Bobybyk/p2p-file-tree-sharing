@@ -49,3 +49,21 @@ func GetPeerAddresses(endpoint string, peerName string) ([]string, error) {
 
 	return strings.Split(res, "\n"), nil
 }
+
+func GetPeerKeys(endpoint string, peerName string) ([]string, error) {
+	res, err := SendGet(endpoint + "/peers/" + peerName + "/key")
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Split(res, "\n"), nil
+}
+
+func GetPeerRoot(endpoint string, peerName string) ([]string, error) {
+	res, err := SendGet(endpoint + "/peers/" + peerName + "/root")
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Split(res, "\n"), nil
+}
