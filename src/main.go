@@ -202,8 +202,13 @@ func refreshPeersNames() {
 	}
 
 	total := ""
+
 	for i := 0; i < len(peersNamesList); i++ {
+		if (len(peersNamesList[i]) > 14) {
+			peersNamesList[i] = peersNamesList[i][:14]
+		}
 		total += peersNamesList[i] + "\n"
+		
 	}
 
 	peersNames.SetText(total)
