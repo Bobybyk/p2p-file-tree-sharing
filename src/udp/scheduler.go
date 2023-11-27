@@ -6,7 +6,6 @@ import (
 	"net"
 	"protocoles-internet-2023/config"
 	"strconv"
-	"time"
 )
 
 /*
@@ -90,7 +89,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 	case PublicKeyReply:
 		//TODO
 		if config.Debug {
-			fmt.Println("PublicKey from: " + peer.Name)
+			fmt.Println("=============\nPublicKey from: " + peer.Name + "\n=============")
 		}
 	case RootReply:
 		//TODO
@@ -106,6 +105,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 				fmt.Println("Received Chunk")
 			case 1:
 				fmt.Println("Received BigFile")
+				fmt.Println("Number of children: " + (strconv.Itoa((len(body.Value) - 1) / 32)))
 			case 2:
 				fmt.Println("Received Directory")
 				fmt.Println("Number of files: " + (strconv.Itoa((len(body.Value) - 1) / 64)))
@@ -124,24 +124,8 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 	}
 }
 
-/*
-	This function manages all I/O on the socket
-
-It automatically receives packets, performs a treatment then sends all pending packets
-*/
-func (sched *Scheduler) Launch(sock *UDPSock) {
-	if config.DebugSpam {
-		fmt.Println("Launching scheduler")
-	}
-
+func (sched *Scheduler) SendPending(sock *UDPSock) {
 	for {
-		received, from, _, timeout := sock.ReceivePacket(time.Second * 1)
-		if !timeout {
-			sched.HandleReceive(received, from)
-		} else if timeout && config.DebugSpam {
-			fmt.Println("UDP Receive timeout")
-		}
-
 		select {
 		case msgToSend := <-sched.PacketSender:
 			err := sock.SendPacket(msgToSend.To, msgToSend.Packet)
@@ -156,6 +140,35 @@ func (sched *Scheduler) Launch(sock *UDPSock) {
 			}
 		}
 	}
+}
+
+func (sched *Scheduler) ReceivePending(sock *UDPSock) {
+	for {
+		received, from, _ := sock.ReceivePacket()
+		if config.DebugSpam {
+			fmt.Println("UDP Receive timeout")
+		}
+		sched.HandleReceive(received, from)
+	}
+}
+
+/*
+	This function manages all I/O on the socket
+
+It automatically receives packets, performs a treatment then sends all pending packets
+*/
+func (sched *Scheduler) Launch(sock *UDPSock) {
+	if config.DebugSpam {
+		fmt.Println("Launching scheduler")
+	}
+
+	go func() {
+		sched.ReceivePending(sock)
+	}()
+
+	go func() {
+		sched.SendPending(sock)
+	}()
 
 }
 
@@ -164,18 +177,15 @@ This function signals to the Launch function that a packet is waiting to be sent
 */
 func (sched *Scheduler) Enqueue(message UDPMessage, dest *net.UDPAddr) {
 
-	//Must be launched in a goroutine to allow Launch to get back to reading on channel
-	go func() {
-		entry := SchedulerEntry{
-			To:     dest,
-			Packet: message,
-		}
-		sched.PacketSender <- entry
+	entry := SchedulerEntry{
+		To:     dest,
+		Packet: message,
+	}
+	sched.PacketSender <- entry
 
-		if config.Debug {
-			fmt.Println("Message sent on channel")
-		}
-	}()
+	if config.Debug {
+		fmt.Println("Message sent on channel")
+	}
 }
 
 func (sched *Scheduler) SendHelloReply(dest *net.UDPAddr, id uint32) {
