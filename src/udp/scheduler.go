@@ -134,20 +134,18 @@ func (sched *Scheduler) SendPending(sock *UDPSock) {
 					fmt.Println("Message sent on socket")
 				}
 			}
-		default: //if there is nothing to read yet, do not block
-			if config.DebugSpam {
-				fmt.Println("Nothing to send on socket")
-			}
 		}
 	}
 }
 
 func (sched *Scheduler) ReceivePending(sock *UDPSock) {
 	for {
-		received, from, _ := sock.ReceivePacket()
-		if config.DebugSpam {
-			fmt.Println("UDP Receive timeout")
+		received, from, err := sock.ReceivePacket()
+		if err != nil {
+			//TODO handle
+			fmt.Println("error receiving")
 		}
+		fmt.Println("received")
 		sched.HandleReceive(received, from)
 	}
 }
