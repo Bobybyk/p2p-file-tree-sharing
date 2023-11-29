@@ -40,7 +40,7 @@ type HelloBody struct {
 }
 
 type DatumBody struct {
-	Hash  string
+	Hash  [32]byte
 	Value []byte
 }
 
@@ -56,9 +56,10 @@ type SchedulerEntry struct {
 }
 
 type Scheduler struct {
-	Lock         sync.Mutex
-	PacketSender chan SchedulerEntry
-	PeerDatabase map[string]PeerInfo
+	Lock          sync.Mutex
+	PacketSender  chan SchedulerEntry
+	DatumReceiver chan SchedulerEntry
+	PeerDatabase  map[string]PeerInfo
 }
 
 type PeerInfo struct {

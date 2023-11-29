@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net"
 	"protocoles-internet-2023/config"
+	"protocoles-internet-2023/filestructure"
 	"strconv"
+	"time"
 )
 
 /*
@@ -13,8 +15,9 @@ Scheduler "constructor"
 */
 func NewScheduler() *Scheduler {
 	return &Scheduler{
-		PeerDatabase: make(map[string]PeerInfo),
-		PacketSender: make(chan SchedulerEntry),
+		PeerDatabase:  make(map[string]PeerInfo),
+		PacketSender:  make(chan SchedulerEntry),
+		DatumReceiver: make(chan SchedulerEntry),
 	}
 }
 
@@ -71,6 +74,14 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 	case Root:
 		peerEdit := sched.PeerDatabase[distantPeer.String()]
 		peerEdit.Root = [32]byte(received.Body)
+
+		if peerEdit.TreeStructure.Hash != peerEdit.Root {
+			peerEdit.TreeStructure = filestructure.Directory{
+				Name: peer.Name + "-" + time.Now().Format("2006-01-02_15-04"),
+				Hash: peerEdit.Root,
+			}
+		}
+
 		sched.PeerDatabase[distantPeer.String()] = peerEdit
 		sched.SendRootReply(distantPeer, received.Id)
 		if config.Debug {
@@ -97,8 +108,9 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			fmt.Println("RootReply from: " + peer.Name)
 		}
 	case Datum:
-		body := BytesToDatumBody(received.Body)
 		if config.Debug {
+			body := BytesToDatumBody(received.Body)
+
 			fmt.Println("Datum from: " + peer.Name)
 			switch body.Value[0] {
 			case 0:
@@ -114,6 +126,19 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 				}
 			}
 		}
+		entry := SchedulerEntry{
+			From:   from,
+			Time:   time.Now(),
+			Packet: received,
+		}
+		select {
+		case sched.DatumReceiver <- entry: //try to send packet to receive packet
+		default: // if the reader is busy, get ignore packet
+			if config.Debug {
+				fmt.Println("Datum received but ignored (busy)")
+			}
+			break
+		}
 	case NoDatum:
 		//TODO
 		if config.Debug {
@@ -124,15 +149,59 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 	}
 }
 
+func (sched *Scheduler) DatumReceivePending() {
+	for {
+		select {
+		case datumEntry := <-sched.DatumReceiver:
+			datumFrom := datumEntry.From
+			peer := sched.PeerDatabase[datumFrom.String()]
+
+			body := BytesToDatumBody(datumEntry.Packet.Body)
+
+			switch body.Value[0] {
+			case 0:
+				chunk := filestructure.Chunk{
+					Hash: body.Hash,
+					Data: body.Value[1:],
+				}
+				peer.TreeStructure.UpdateDirectory(chunk.Hash, chunk)
+			case 1:
+				bigfile := filestructure.Bigfile{
+					Hash: body.Hash,
+				}
+
+				for i := 0; i < len(body.Value); i += 32 {
+					bigfile.Data = append(bigfile.Data, filestructure.Node{
+						Hash: [32]byte(body.Value[i : i+32]),
+					})
+				}
+				peer.TreeStructure.UpdateDirectory(bigfile.Hash, bigfile)
+			case 2:
+				dir := filestructure.Directory{
+					Hash: body.Hash,
+					Data: make([]filestructure.File, 0),
+				}
+				for i := 1; i < len(body.Value)-1; i += 64 {
+					dir.Data = append(dir.Data, filestructure.Node{
+						Name: string(body.Value[i : i+32]),
+						Hash: [32]byte(body.Value[i+32 : i+64]),
+					})
+				}
+				peer.TreeStructure.UpdateDirectory(dir.Hash, dir)
+			}
+
+			sched.PeerDatabase[datumFrom.String()] = peer
+		}
+	}
+}
+
 func (sched *Scheduler) SendPending(sock *UDPSock) {
 	for {
 		select {
 		case msgToSend := <-sched.PacketSender:
 			err := sock.SendPacket(msgToSend.To, msgToSend.Packet)
-			if err == nil {
-				if config.Debug {
-					fmt.Println("Message sent on socket")
-				}
+			if err == nil && config.Debug {
+				fmt.Println("Message sent on socket")
 			}
 		}
 	}
@@ -145,7 +214,6 @@ func (sched *Scheduler) ReceivePending(sock *UDPSock) {
 			//TODO handle
 			fmt.Println("error receiving")
 		}
-		fmt.Println("received")
 		sched.HandleReceive(received, from)
 	}
 }
@@ -160,13 +228,11 @@ func (sched *Scheduler) Launch(sock *UDPSock) {
 		fmt.Println("Launching scheduler")
 	}
 
-	go func() {
-		sched.ReceivePending(sock)
-	}()
+	go sched.ReceivePending(sock)
 
-	go func() {
-		sched.SendPending(sock)
-	}()
+	go sched.SendPending(sock)
+
+	go sched.DatumReceivePending()
 
 }
 

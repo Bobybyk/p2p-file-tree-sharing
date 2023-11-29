@@ -1,60 +1,67 @@
 package filestructure
 
-import (
-	"fmt"
-	"os"
-)
+func (root *Directory) GetNode(hash [32]byte) File {
+	for i := 0; i < len(root.Data); i++ {
 
-func (dir Directory) DumpToDisk(dirName string) {
-	err := os.Mkdir(dirName, os.ModePerm)
-	if err != nil {
-		fmt.Println(err)
+		if ch, ok := root.Data[i].(Chunk); ok && ch.Hash == hash {
+			return root.Data[i]
+		} else if big, ok := root.Data[i].(Bigfile); ok {
+			return big.GetNode(hash)
+		}
 	}
 
-	for _, elem := range dir.Data {
+	return nil
+}
 
-		if chunk, ok := elem.(Chunk); ok { //if the element is a chunk
+func (big *Bigfile) GetNode(hash [32]byte) File {
 
-			f, err := os.OpenFile(dirName+"/"+chunk.Name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err != nil {
-				fmt.Println(err)
-			}
-			defer f.Close()
+	for i := 0; i < len(big.Data); i++ {
 
-			_, err = f.Write(chunk.Data)
-			if err != nil {
-				fmt.Println(err)
-				//TODO handle
-			}
+		if ch, ok := big.Data[i].(Chunk); ok && ch.Hash == hash {
+			return big.Data[i]
+		} else if nextBig, ok := big.Data[i].(Bigfile); ok {
+			return nextBig.GetNode(hash)
+		}
+	}
 
-		} else if dirElem, ok := elem.(Directory); ok { //if the element is a directory
+	return nil
+}
 
-			dirElem.DumpToDisk(dirName + "/" + dirElem.Name)
+func (root *Directory) addChunk(hash [32]byte, newChunk Chunk) {
 
-		} else if big, ok := elem.(Bigfile); ok { //if the element is a bigfile
+}
 
-			big.Dump(dirName + "/" + big.Name)
+func (root *Directory) addBigfile(hash [32]byte, newBigfile Bigfile) {
+
+}
+
+func (root *Directory) addDirectory(hash [32]byte, newDir Directory) {
+
+	if root.Hash == hash {
+		root.Data = newDir.Data
+	}
+
+	for i := 0; i < len(root.Data); i++ {
+
+		if dir, ok := root.Data[i].(Directory); ok {
+			dir.addDirectory(hash, newDir)
+		}
+
+		node, ok := root.Data[i].(Node)
+		if ok && node.Hash == hash {
+			newDir.Name = node.Name
+			root.Data[i] = newDir
 		}
 	}
 }
 
-func (big Bigfile) Dump(path string) {
-	for i := 0; i < len(big.Data); i++ {
+func (root *Directory) UpdateDirectory(hash [32]byte, newFile File) {
 
-		if newBig, ok := big.Data[i].(Bigfile); ok { //if bigfile -> recursive call
-			newBig.Dump(path)
-		} else if chunk, ok := big.Data[i].(Chunk); ok { //if chunk -> write
-			f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err != nil {
-				fmt.Println(err)
-			}
-			defer f.Close()
-
-			_, err = f.Write(chunk.Data)
-			if err != nil {
-				fmt.Println(err)
-				//TODO handle
-			}
-		}
+	if ch, ok := newFile.(Chunk); ok {
+		root.addChunk(hash, ch)
+	} else if big, ok := newFile.(Bigfile); ok {
+		root.addBigfile(hash, big)
+	} else if dir, ok := newFile.(Directory); ok {
+		root.addDirectory(hash, dir)
 	}
 }

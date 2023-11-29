@@ -71,7 +71,7 @@ func (body HelloBody) HelloBodyToBytes() UDPMessageBytes {
 func BytesToDatumBody(bytes UDPMessageBytes) DatumBody {
 	body := DatumBody{}
 
-	body.Hash = string(bytes[:32])
+	body.Hash = [32]byte(bytes[:32])
 
 	/*for i := 0; i < len(bytes)-32; i++ {
 		body.Value[i] = bytes[i+32]
