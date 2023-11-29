@@ -11,7 +11,6 @@ import (
 	"net"
 	"os"
 	"protocoles-internet-2023/config"
-	"protocoles-internet-2023/filestructure"
 	"protocoles-internet-2023/rest"
 	udptypes "protocoles-internet-2023/udp"
 	"time"
@@ -54,31 +53,11 @@ func main() {
 			}
 		}
 
-		ip, _ := net.ResolveUDPAddr("udp", serverIp)
-		body := scheduler.PeerDatabase[serverIp].Root
+		_, _ = net.ResolveUDPAddr("udp", serverIp)
 
-		getdatum := udptypes.UDPMessage{
-			Id:     uint32(rand.Int31()),
-			Type:   udptypes.GetDatum,
-			Length: 32,
-			Body:   body[:],
-		}
+		//TODO get peer's files
 
-		scheduler.Enqueue(getdatum, ip)
-
-		time.Sleep(time.Second * 3)
-		getdatum.Id = uint32(rand.Int31())
-		body = scheduler.PeerDatabase[serverIp].TreeStructure.Data[0].(filestructure.Node).Hash
-		getdatum.Body = body[:]
-		scheduler.Enqueue(getdatum, ip)
-
-		time.Sleep(time.Second * 3)
-		getdatum.Id = uint32(rand.Int31())
-		body = scheduler.PeerDatabase[serverIp].TreeStructure.Data[1].(filestructure.Node).Hash
-		getdatum.Body = body[:]
-		scheduler.Enqueue(getdatum, ip)
-
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 2)
 		fmt.Println("\n\n\n"+scheduler.PeerDatabase[serverIp].TreeStructure.Name, len(scheduler.PeerDatabase[serverIp].TreeStructure.Data))
 		for i := 0; i < len(scheduler.PeerDatabase[serverIp].TreeStructure.Data); i++ {
 			fmt.Println(scheduler.PeerDatabase[serverIp].TreeStructure.Data[i])

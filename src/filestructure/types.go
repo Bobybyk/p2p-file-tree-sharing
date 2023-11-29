@@ -2,32 +2,23 @@ package filestructure
 
 type File interface{}
 
-type Chunk struct {
-	Data []byte
+type EmptyNode struct {
 	Name string
 	Hash [32]byte
-}
-
-type Bigfile struct {
-	Data []File
-	Name string
-	Hash [32]byte
-}
-
-type Directory struct {
-	Name string
-	Hash [32]byte
-	Data []File
 }
 
 type Node struct {
 	Name string
 	Hash [32]byte
+	Data []File
 }
 
-type PendingChild struct {
+type Chunk struct {
 	Name string
 	Hash [32]byte
+	Data []byte
 }
 
+type Bigfile Node
+type Directory Node
 type Root Directory

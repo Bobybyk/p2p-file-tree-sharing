@@ -164,30 +164,36 @@ func (sched *Scheduler) DatumReceivePending() {
 					Hash: body.Hash,
 					Data: body.Value[1:],
 				}
+				peer.FilesLock.Lock()
 				peer.TreeStructure.UpdateDirectory(chunk.Hash, chunk)
+				peer.FilesLock.Unlock()
 			case 1:
 				bigfile := filestructure.Bigfile{
 					Hash: body.Hash,
 				}
 
-				for i := 0; i < len(body.Value); i += 32 {
-					bigfile.Data = append(bigfile.Data, filestructure.Node{
+				for i := 1; i < len(body.Value); i += 32 {
+					bigfile.Data = append(bigfile.Data, filestructure.EmptyNode{
 						Hash: [32]byte(body.Value[i : i+32]),
 					})
 				}
+				peer.FilesLock.Lock()
 				peer.TreeStructure.UpdateDirectory(bigfile.Hash, bigfile)
+				peer.FilesLock.Unlock()
 			case 2:
 				dir := filestructure.Directory{
 					Hash: body.Hash,
 					Data: make([]filestructure.File, 0),
 				}
 				for i := 1; i < len(body.Value)-1; i += 64 {
-					dir.Data = append(dir.Data, filestructure.Node{
+					dir.Data = append(dir.Data, filestructure.EmptyNode{
 						Name: string(body.Value[i : i+32]),
 						Hash: [32]byte(body.Value[i+32 : i+64]),
 					})
 				}
+				peer.FilesLock.Lock()
 				peer.TreeStructure.UpdateDirectory(dir.Hash, dir)
+				peer.FilesLock.Unlock()
 			}
 
 			sched.PeerDatabase[datumFrom.String()] = peer

@@ -66,5 +66,6 @@ type PeerInfo struct {
 	Name          string
 	PublicKey     []byte
 	Root          [32]byte
+	FilesLock     sync.Mutex
 	TreeStructure filestructure.Directory
 }
