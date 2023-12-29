@@ -86,3 +86,11 @@ Le champ signature optionnel est de longueur 64 octets.
 
 Sur le diagramme un numéro entre parenthèses spécifie le numéro correspondant au type du message.
 ![Diagramme des différentes requêtes UDP](res/peer-to-peer.png)
+
+## Dependencies
+
+The GUI requires the following packages to compile:
+
+Debian / Ubuntu: `sudo apt-get install golang gcc libgl1-mesa-dev xorg-dev`
+
+Arch Linux: `sudo pacman -S go xorg-server-devel libxcursor libxrandr libxinerama libxi`
