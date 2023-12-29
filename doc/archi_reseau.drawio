@@ -1,0 +1,147 @@
+<mxfile host="Electron" modified="2023-12-29T18:37:05.349Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/22.1.2 Chrome/114.0.5735.289 Electron/25.9.4 Safari/537.36" etag="aP-HMez06sZAfmmLMCsg" version="22.1.2" type="device">
+  <diagram name="Page-1" id="6GWZ8GB9ke-ZuX94Tfkd">
+    <mxGraphModel dx="2074" dy="2373" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-6" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endArrow=none;endFill=0;startArrow=classic;startFill=1;dashed=1;dashPattern=8 8;" edge="1" parent="1" source="YV2pxjx_i_R8zEDFhrPz-1" target="YV2pxjx_i_R8zEDFhrPz-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-7" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endArrow=none;endFill=0;startArrow=classic;startFill=1;dashed=1;dashPattern=8 8;" edge="1" parent="1" source="YV2pxjx_i_R8zEDFhrPz-1" target="YV2pxjx_i_R8zEDFhrPz-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-8" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endArrow=none;endFill=0;startArrow=classic;startFill=1;dashed=1;dashPattern=8 8;" edge="1" parent="1" source="YV2pxjx_i_R8zEDFhrPz-1" target="YV2pxjx_i_R8zEDFhrPz-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-1" value="Scheduler" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="770" y="20" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-43" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;curved=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="YV2pxjx_i_R8zEDFhrPz-2" target="YV2pxjx_i_R8zEDFhrPz-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-54" value="Packet received" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="YV2pxjx_i_R8zEDFhrPz-43">
+          <mxGeometry x="-0.2567" y="-8" relative="1" as="geometry">
+            <mxPoint x="-52" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-2" value="ReceivePending" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="590" y="304.9999999999999" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;curved=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="YV2pxjx_i_R8zEDFhrPz-3" target="YV2pxjx_i_R8zEDFhrPz-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-52" value="Packet to send" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="YV2pxjx_i_R8zEDFhrPz-46">
+          <mxGeometry x="0.2714" y="-21" relative="1" as="geometry">
+            <mxPoint x="43" y="-4" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-3" value="SendPending" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="950" y="360" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-4" value="DatumReceivePending" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="10" y="305" width="139" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-45" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.75;entryY=1;entryDx=0;entryDy=0;curved=1;" edge="1" parent="1" source="YV2pxjx_i_R8zEDFhrPz-10" target="YV2pxjx_i_R8zEDFhrPz-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-53" value="Packet received" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="YV2pxjx_i_R8zEDFhrPz-45">
+          <mxGeometry x="0.141" y="-20" relative="1" as="geometry">
+            <mxPoint x="40" y="-36" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-10" value="Socket" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="795" y="540" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-12" value="HandleReceive" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="414" y="509.9999999999999" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-22" value="Enqueue" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="360" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-40" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="YV2pxjx_i_R8zEDFhrPz-38" target="YV2pxjx_i_R8zEDFhrPz-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-41" value="Packet to send" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="YV2pxjx_i_R8zEDFhrPz-40">
+          <mxGeometry x="0.2067" y="1" relative="1" as="geometry">
+            <mxPoint x="12" y="-11" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-38" value="PacketSender" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.direct_data;whiteSpace=wrap;rotation=0;direction=west;" vertex="1" parent="1">
+          <mxGeometry x="1190" y="375" width="140" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="YV2pxjx_i_R8zEDFhrPz-22" target="YV2pxjx_i_R8zEDFhrPz-38">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-42" value="Packet to send" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="YV2pxjx_i_R8zEDFhrPz-39">
+          <mxGeometry x="0.1564" relative="1" as="geometry">
+            <mxPoint x="14" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-49" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="YV2pxjx_i_R8zEDFhrPz-47" target="YV2pxjx_i_R8zEDFhrPz-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-51" value="Datum received" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="YV2pxjx_i_R8zEDFhrPz-49">
+          <mxGeometry x="-0.1584" y="1" relative="1" as="geometry">
+            <mxPoint x="-11" y="-16" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-47" value="DatumReceiver" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.direct_data;whiteSpace=wrap;rotation=0;direction=west;" vertex="1" parent="1">
+          <mxGeometry x="300" y="320" width="140" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-48" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="YV2pxjx_i_R8zEDFhrPz-2" target="YV2pxjx_i_R8zEDFhrPz-47">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-50" value="Datum received" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="YV2pxjx_i_R8zEDFhrPz-48">
+          <mxGeometry x="0.181" relative="1" as="geometry">
+            <mxPoint x="14" y="-15" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-55" value="&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Scheduler (not a good name, manager would be better) manages IOs for the socket it is given. It sends and receives packets&amp;nbsp;&lt;/span&gt;&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#fff2cc;strokeColor=#d6b656;align=center;" vertex="1" parent="1">
+          <mxGeometry x="940" y="2.5" width="340" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-57" value="" style="endArrow=classic;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;startArrow=none;startFill=0;endFill=1;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="40" y="-27.5" as="sourcePoint" />
+            <mxPoint x="120" y="-27.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-59" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;&lt;u&gt;Caption&lt;/u&gt;&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="-100" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-61" value="Works in a thread&lt;br&gt;Arrow points the thread launcher" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="120" y="-47.5" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-62" value="" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.direct_data;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="39.5" y="2.5" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-63" value="Unix pipe / Golang channel" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="135" y="-2.5" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-64" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="39.5" y="52.5" as="sourcePoint" />
+            <mxPoint x="119.5" y="52.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-65" value="Argument passed &lt;br&gt;to arrow destination" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="149" y="32.5" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-66" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="39.5" y="82.5" width="80.5" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-67" value="Function" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="185" y="77.5" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-68" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="39.5" y="122.5" width="80.5" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-69" value="Structure / Object" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="154" y="117.5" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YV2pxjx_i_R8zEDFhrPz-70" value="&lt;div style=&quot;&quot;&gt;Enqueue is used to send a&amp;nbsp;&lt;/div&gt;&lt;div style=&quot;&quot;&gt;packet asynchonously.&lt;/div&gt;&lt;div style=&quot;&quot;&gt;It is the only method that is callable outside of the workflwo&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#fff2cc;strokeColor=#d6b656;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="440" width="220" height="80" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
