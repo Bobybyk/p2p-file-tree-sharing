@@ -74,11 +74,18 @@ func main() {
 
 	go func() {
 		for range time.Tick(time.Second * 30) {
+			if config.Debug {
+				fmt.Println("Sending Hello to server to maintain association")
+			}
 			HelloToServer()
 		}
 	}()
 
+	if config.Debug {
+		fmt.Println("Sending Hello To Server")
+	}
 	HelloToServer()
+
 	refreshPeersNames()
 
 	window.ShowAndRun()
