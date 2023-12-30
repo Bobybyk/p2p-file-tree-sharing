@@ -38,6 +38,11 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		return
 	}
 
+	if received.Type == NoOp || ((peer.LastPacketSent == nil || peer.LastPacketSent.Packet.Id != received.Id) && received.Type >= NatTraversalRequest && received.Type != HelloReply) {
+		fmt.Println("Unrequested Packet (" + strconv.Itoa(int(received.Type)) + ") from " + peer.Name + " -> throwing it away")
+		return
+	}
+
 	distantPeer, _ := net.ResolveUDPAddr("udp", from.String())
 
 	//otherwise handle the messages
@@ -53,11 +58,15 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			fmt.Println("Error from: " + peer.Name)
 		}
 	case Hello:
-		sched.SendHelloReply(distantPeer, received.Id)
 		if config.Debug {
 			fmt.Println("Hello from: " + peer.Name)
 		}
+		sched.SendHelloReply(distantPeer, received.Id)
 	case PublicKey:
+		if config.Debug {
+			fmt.Println("PublicKey from: " + peer.Name)
+		}
+
 		if received.Length != 0 {
 			peerEdit := sched.PeerDatabase[distantPeer.String()]
 			peerEdit.PublicKey = received.Body
@@ -68,10 +77,11 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			sched.PeerDatabase[distantPeer.String()] = peerEdit
 		}
 		sched.SendPublicKeyReply(distantPeer, received.Id)
-		if config.Debug {
-			fmt.Println("PublicKey from: " + peer.Name)
-		}
 	case Root:
+		if config.Debug {
+			fmt.Println("Root from: " + peer.Name)
+		}
+
 		peerEdit := sched.PeerDatabase[distantPeer.String()]
 		peerEdit.Root = [32]byte(received.Body)
 
@@ -84,9 +94,6 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 
 		sched.PeerDatabase[distantPeer.String()] = peerEdit
 		sched.SendRootReply(distantPeer, received.Id)
-		if config.Debug {
-			fmt.Println("Root from: " + peer.Name)
-		}
 	case GetDatum:
 		//TODO
 		if config.Debug {
@@ -97,16 +104,19 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		if config.Debug {
 			fmt.Println("HelloReply From: " + peer.Name)
 		}
+		peer.LastPacketSent = nil
 	case PublicKeyReply:
 		//TODO
 		if config.Debug {
 			fmt.Println("=============\nPublicKey from: " + peer.Name + "\n=============")
 		}
+		peer.LastPacketSent = nil
 	case RootReply:
 		//TODO
 		if config.Debug {
 			fmt.Println("RootReply from: " + peer.Name)
 		}
+		peer.LastPacketSent = nil
 	case Datum:
 		if config.Debug {
 			body := BytesToDatumBody(received.Body)
@@ -139,11 +149,13 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			}
 			break
 		}
+		peer.LastPacketSent = nil
 	case NoDatum:
 		//TODO
 		if config.Debug {
 			fmt.Println("NoDatum from: " + peer.Name)
 		}
+		peer.LastPacketSent = nil
 	default:
 		fmt.Println(received.Type)
 	}
@@ -164,9 +176,7 @@ func (sched *Scheduler) DatumReceivePending() {
 					Hash: body.Hash,
 					Data: body.Value[1:],
 				}
-				peer.FilesLock.Lock()
 				peer.TreeStructure.UpdateDirectory(chunk.Hash, chunk)
-				peer.FilesLock.Unlock()
 			case 1:
 				bigfile := filestructure.Bigfile{
 					Hash: body.Hash,
@@ -177,9 +187,7 @@ func (sched *Scheduler) DatumReceivePending() {
 						Hash: [32]byte(body.Value[i : i+32]),
 					})
 				}
-				peer.FilesLock.Lock()
 				peer.TreeStructure.UpdateDirectory(bigfile.Hash, bigfile)
-				peer.FilesLock.Unlock()
 			case 2:
 				dir := filestructure.Directory{
 					Hash: body.Hash,
@@ -191,9 +199,7 @@ func (sched *Scheduler) DatumReceivePending() {
 						Hash: [32]byte(body.Value[i+32 : i+64]),
 					})
 				}
-				peer.FilesLock.Lock()
 				peer.TreeStructure.UpdateDirectory(dir.Hash, dir)
-				peer.FilesLock.Unlock()
 			}
 
 			sched.PeerDatabase[datumFrom.String()] = peer
@@ -206,9 +212,40 @@ func (sched *Scheduler) SendPending(sock *UDPSock) {
 		select {
 		case msgToSend := <-sched.PacketSender:
 			err := sock.SendPacket(msgToSend.To, msgToSend.Packet)
-			if err == nil && config.Debug {
+			if err == nil && config.DebugSpam {
 				fmt.Println("Message sent on socket")
 			}
+			if msgToSend.Packet.Type < NatTraversalRequest {
+
+				dest := sched.PeerDatabase[msgToSend.To.String()]
+				dest.LastPacketSent = &msgToSend
+				sched.PeerDatabase[msgToSend.To.String()] = dest
+				if config.DebugSpam {
+					fmt.Println("Memorized packet")
+				}
+			}
+		}
+	}
+}
+
+func (sched *Scheduler) Reissuer(sock *UDPSock) {
+
+	for k, v := range sched.PeerDatabase {
+
+		entry := v.LastPacketSent
+
+		if entry != nil && entry.Time.Add(time.Second).Before(time.Now()) {
+
+			if config.Debug {
+				fmt.Println("Reissuing packet")
+			}
+
+			err := sock.SendPacket(entry.To, entry.Packet)
+			if err != nil {
+				return
+			}
+			entry.Time = time.Now()
+			sched.PeerDatabase[k] = v
 		}
 	}
 }
@@ -240,6 +277,8 @@ func (sched *Scheduler) Launch(sock *UDPSock) {
 
 	go sched.DatumReceivePending()
 
+	//TODO: refactor -> must not be launched here
+	//go sched.Reissuer(sock)
 }
 
 /*
@@ -250,10 +289,11 @@ func (sched *Scheduler) Enqueue(message UDPMessage, dest *net.UDPAddr) {
 	entry := SchedulerEntry{
 		To:     dest,
 		Packet: message,
+		Time:   time.Now(),
 	}
 	sched.PacketSender <- entry
 
-	if config.Debug {
+	if config.DebugSpam {
 		fmt.Println("Message sent on channel")
 	}
 }
