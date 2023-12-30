@@ -2,6 +2,7 @@ package udptypes
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"net"
 	"protocoles-internet-2023/config"
@@ -95,9 +96,36 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		sched.PeerDatabase[distantPeer.String()] = peerEdit
 		sched.SendRootReply(distantPeer, received.Id)
 	case GetDatum:
-		//TODO
+
 		if config.Debug {
 			fmt.Println("Getdatum from: " + peer.Name)
+		}
+
+		// reply with the resquested node datum
+		peerEdit := sched.PeerDatabase[distantPeer.String()]
+		node := peerEdit.TreeStructure.GetNode([32]byte(received.Body))
+		if node != nil {
+
+			nodeBytes, err := json.Marshal(node)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			msg := UDPMessage{
+				Id:     received.Id,
+				Type:   Datum,
+				Length: uint16(len(nodeBytes)),
+				Body:   nodeBytes,
+			}
+			sched.Enqueue(msg, distantPeer)
+		} else {
+			msg := UDPMessage{
+				Id:     received.Id,
+				Type:   NoDatum,
+				Length: 0,
+			}
+			sched.Enqueue(msg, distantPeer)
 		}
 	case HelloReply:
 		//TODO
