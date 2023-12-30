@@ -1,19 +1,23 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 	"log"
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
 	"protocoles-internet-2023/config"
+	"protocoles-internet-2023/filestructure"
 	"protocoles-internet-2023/rest"
 	udptypes "protocoles-internet-2023/udp"
 	"time"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 )
 
 var ENDPOINT = "https://jch.irif.fr:8443"
@@ -21,7 +25,78 @@ var ENDPOINT = "https://jch.irif.fr:8443"
 var scheduler *udptypes.Scheduler
 var peersNames = widget.NewLabel("")
 
+// Load a directory recursively
+func loadDirectory(path string) (filestructure.File, error) {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if fileInfo.IsDir() {
+		node := filestructure.Directory{
+			Name: fileInfo.Name(),
+		}
+
+		children, err := os.ReadDir(path)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, child := range children {
+			childFile, err := loadDirectory(filepath.Join(path, child.Name()))
+			if err != nil {
+				return nil, err
+			}
+			node.Data = append(node.Data, childFile)
+		}
+
+		// Compute the hash of the directory
+		hash := sha256.Sum256([]byte(node.Name))
+		node.Hash = hash
+
+		return node, nil
+	} else {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+
+		chunk := filestructure.Chunk{
+			Name: fileInfo.Name(),
+			Data: data,
+		}
+
+		// Compute the hash of the file
+		hash := sha256.Sum256(data)
+		chunk.Hash = hash
+
+		return chunk, nil
+	}
+}
+
+// Print the file structure
+func printFileStructure(file filestructure.File, indent string) {
+	switch f := file.(type) {
+	case filestructure.Directory:
+		fmt.Println(indent + f.Name + "/")
+		for _, child := range f.Data {
+			printFileStructure(child, indent+"  ")
+		}
+	case filestructure.Chunk:
+		fmt.Println(indent + f.Name)
+	default:
+		fmt.Println("Unknown file type")
+	}
+}
+
 func main() {
+
+	file, err := loadDirectory("test")
+	if err != nil {
+		log.Fatal(err)
+	} else if config.Debug {
+		printFileStructure(file, "")
+	}
 
 	scheduler = udptypes.NewScheduler()
 	socket, err := udptypes.NewUDPSocket()
