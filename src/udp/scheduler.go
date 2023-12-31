@@ -21,6 +21,11 @@ func NewScheduler() *Scheduler {
 	}
 }
 
+func verifyDatumHash(datum DatumBody) bool {
+	hash := sha256.Sum256(datum.Value)
+	return hash == datum.Hash
+}
+
 func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 
 	//register user in the database
@@ -118,6 +123,12 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		}
 		peer.LastPacketSent = nil
 	case Datum:
+		if !verifyDatumHash(BytesToDatumBody(received.Body)) {
+			if config.Debug {
+				fmt.Println("Invalid hash for datum")
+			}
+			return
+		}
 		if config.Debug {
 			body := BytesToDatumBody(received.Body)
 
