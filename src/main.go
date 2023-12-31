@@ -118,6 +118,62 @@ func loadDirectory(path string) (filestructure.File, error) {
 	}
 }
 
+func saveFileStructure(path string, node filestructure.File) error {
+	fmt.Println("Saving : ", path)
+	switch node := node.(type) {
+	case filestructure.Chunk:
+		return os.WriteFile(path, node.Data, 0644)
+	case filestructure.Bigfile:
+		var data []byte
+		for _, child := range node.Data {
+			switch child := child.(type) {
+			case filestructure.Chunk:
+				data = append(data, child.Data...)
+			case filestructure.Bigfile:
+				for _, grandChild := range child.Data {
+					switch grandChild := grandChild.(type) {
+					case filestructure.Chunk:
+						data = append(data, grandChild.Data...)
+					default:
+						return fmt.Errorf("unexpected type in Bigfile: %T", grandChild)
+					}
+				}
+			default:
+				return fmt.Errorf("unexpected type in Bigfile: %T", child)
+			}
+		}
+		return os.WriteFile(path, data, 0644)
+	case filestructure.Directory:
+		if err := os.MkdirAll(path, 0755); err != nil {
+			return err
+		}
+		for _, child := range node.Data {
+			switch child := child.(type) {
+			case filestructure.Directory:
+				childPath := filepath.Join(path, child.Name)
+				if err := saveFileStructure(childPath, child); err != nil {
+					return err
+				}
+			case filestructure.Chunk:
+				childPath := filepath.Join(path, child.Name)
+				if err := saveFileStructure(childPath, child); err != nil {
+					return err
+				}
+			case filestructure.Bigfile:
+				childPath := filepath.Join(path, child.Name)
+				if err := saveFileStructure(childPath, child); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unexpected type: %T", child)
+			}
+		}
+	default:
+		return fmt.Errorf("unexpected type: %T", node)
+	}
+	return nil
+}
+
 // Print the file structure
 func printFileStructure(file filestructure.File, indent string, simplified bool) {
 	switch f := file.(type) {
@@ -153,6 +209,7 @@ func main() {
 		 */
 		printFileStructure(file, "", true)
 	}
+	saveFileStructure("test_arborescence_copy", file)
 
 	scheduler = udptypes.NewScheduler()
 	socket, err := udptypes.NewUDPSocket()
