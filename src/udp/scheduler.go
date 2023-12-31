@@ -2,7 +2,6 @@ package udptypes
 
 import (
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"net"
 	"protocoles-internet-2023/config"
@@ -105,11 +104,30 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		peerEdit := sched.PeerDatabase[distantPeer.String()]
 		node := peerEdit.TreeStructure.GetNode([32]byte(received.Body))
 		if node != nil {
-
-			nodeBytes, err := json.Marshal(node)
-			if err != nil {
-				fmt.Println(err)
-				return
+			var nodeBytes []byte
+			switch node := node.(type) {
+			case filestructure.Chunk:
+				nodeBytes = DatumBody{
+					Hash:  node.Hash,
+					Value: append([]byte{0}, node.Data...),
+				}.DatumBodyToBytes()
+			case filestructure.Bigfile:
+				nodeBytes = DatumBody{
+					Hash: node.Hash,
+				}.DatumBodyToBytes()
+				for _, child := range node.Data {
+					hash := child.(filestructure.Node).Hash
+					nodeBytes = append(nodeBytes, hash[:]...)
+				}
+			case filestructure.Directory:
+				nodeBytes = DatumBody{
+					Hash: node.Hash,
+				}.DatumBodyToBytes()
+				for _, child := range node.Data {
+					nodeBytes = append(nodeBytes, []byte(child.(filestructure.Node).Name)...)
+					hash := child.(filestructure.Node).Hash
+					nodeBytes = append(nodeBytes, hash[:]...)
+				}
 			}
 
 			msg := UDPMessage{
