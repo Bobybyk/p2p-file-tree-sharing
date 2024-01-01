@@ -3,6 +3,7 @@ package udptypes
 import (
 	"crypto/sha256"
 	"fmt"
+	"math/rand"
 	"net"
 	"protocoles-internet-2023/config"
 	"protocoles-internet-2023/filestructure"
@@ -24,6 +25,92 @@ func NewScheduler() *Scheduler {
 func verifyDatumHash(datum DatumBody) bool {
 	hash := sha256.Sum256(datum.Value)
 	return hash == datum.Hash
+}
+
+func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) {
+
+	ipAddr, _ := net.ResolveUDPAddr("udp", ip)
+
+	getDatum := UDPMessage{
+		Id:     uint32(rand.Int31()),
+		Type:   GetDatum,
+		Length: 32,
+		Body:   node.Hash[:],
+	}
+
+	fmt.Println("number of children next: ", len(node.Children))
+
+	for _, child := range node.Children {
+		if config.DebugSpam {
+			fmt.Println("Requesting child to insert")
+		}
+
+		getDatum.Body = child.Hash[:]
+
+		sched.Enqueue(getDatum, ipAddr)
+
+		datumEntry := <-sched.DatumReceiver
+		datumFrom := datumEntry.From
+
+		body := BytesToDatumBody(datumEntry.Packet.Body)
+
+		switch body.Value[0] {
+		case 0: //chunk
+			newChunk := filestructure.Chunk{
+				Data: body.Value[1:],
+				Hash: body.Hash,
+			}
+			if node.Name != "" {
+				newChunk.Name = node.Name
+			}
+
+			node.Data = append(node.Data, newChunk)
+		case 1: //bigfile
+
+			newBig := filestructure.Bigfile{
+				Hash: body.Hash,
+			}
+
+			if node.Name != "" {
+				newBig.Name = node.Name
+			}
+
+			for i := 1; i < len(body.Value); i += 32 {
+				newBig.Children = append(newBig.Children, filestructure.Child{
+					Hash: [32]byte(body.Value[i : i+32]),
+				})
+			}
+
+			node.Data = append(node.Data, newBig)
+		case 2: //directory
+
+			newDir := filestructure.Directory{
+				Name: sched.PeerDatabase[datumFrom.String()].Name + "-" + time.Now().Format("2006-01-02_15-04"),
+				Hash: body.Hash,
+			}
+			for i := 1; i < len(body.Value); i += 64 {
+				newDir.Children = append(newDir.Children, filestructure.Child{
+					Name: string(body.Value[i : i+32]),
+					Hash: [32]byte(body.Value[i+32 : i+64]),
+				})
+			}
+			if child.Name != "" {
+				newDir.Name = child.Name
+			}
+			node.Data = append(node.Data, newDir)
+		}
+	}
+
+	fmt.Println("=========== START RECURSION =========")
+
+	for _, data := range node.Data {
+		if datanode, ok := data.(filestructure.Directory); ok {
+			sched.DownloadNode((*filestructure.Node)(&datanode), ip)
+		} else if datanode, ok := data.(filestructure.Bigfile); ok {
+			sched.DownloadNode((*filestructure.Node)(&datanode), ip)
+		}
+	}
+	fmt.Println("=====================================")
 }
 
 func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
@@ -164,66 +251,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 }
 
 func (sched *Scheduler) DatumReceivePending() {
-	datumEntry := <-sched.DatumReceiver
-	datumFrom := datumEntry.From
 
-	body := BytesToDatumBody(datumEntry.Packet.Body)
-	parent, name, _ := sched.PeerDatabase[datumFrom.String()].TreeStructure.GetParentNode(body.Hash)
-
-	switch body.Value[0] {
-	case 0: //chunk
-		newChunk := filestructure.Chunk{
-			Data: body.Value[1:],
-			Hash: body.Hash,
-		}
-		if name != "" {
-			newChunk.Name = name
-		}
-
-		parent.Data = append(parent.Data, newChunk)
-	case 1: //bigfile
-
-		newBig := filestructure.Bigfile{
-			Hash: body.Hash,
-		}
-
-		if name != "" {
-			newBig.Name = name
-		}
-
-		for i := 1; i < len(body.Value); i += 32 {
-			newBig.Children = append(newBig.Children, filestructure.Child{
-				Hash: [32]byte(body.Value[i : i+32]),
-			})
-		}
-
-		parent.Data = append(parent.Data, newBig)
-	case 2: //directory
-
-		newDir := filestructure.Directory{
-			Name: sched.PeerDatabase[datumFrom.String()].Name + "-" + time.Now().Format("2006-01-02_15-04"),
-			Hash: sched.PeerDatabase[datumFrom.String()].Root,
-		}
-		for i := 1; i < len(body.Value); i += 64 {
-			newDir.Children = append(newDir.Children, filestructure.Child{
-				Name: string(body.Value[i : i+32]),
-				Hash: [32]byte(body.Value[i+32 : i+64]),
-			})
-		}
-
-		if sched.PeerDatabase[datumFrom.String()].TreeStructure.Hash != sched.PeerDatabase[datumFrom.String()].Root { //receiving root
-			if config.DebugSpam {
-				fmt.Println("Updating root of ", sched.PeerDatabase[datumFrom.String()].Name)
-			}
-
-			sched.PeerDatabase[datumFrom.String()].TreeStructure = newDir
-		} else { //insert into tree
-			if name != "" {
-				newDir.Name = name
-			}
-			parent.Data = append(parent.Data, newDir)
-		}
-	}
 }
 
 func (sched *Scheduler) SendPending(sock *UDPSock) {

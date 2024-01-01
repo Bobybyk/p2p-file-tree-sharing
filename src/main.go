@@ -196,19 +196,42 @@ func main() {
 		}
 
 		scheduler.Enqueue(datumRoot, ip)
-		scheduler.DatumReceivePending()
 
-		for _, child := range scheduler.PeerDatabase[serverIp].TreeStructure.Children {
+		node := <-scheduler.DatumReceiver
+		body := udptypes.BytesToDatumBody(node.Packet.Body)
 
-			if config.DebugSpam {
-				fmt.Println("Requesting child to insert")
+		for i := 1; i < len(body.Value); i += 64 {
+			child := filestructure.Child{
+				Name: string(body.Value[i : i+32]),
+				Hash: [32]byte(body.Value[i+32 : i+64]),
 			}
-
-			datumRoot.Body = child.Hash[:]
-
-			scheduler.Enqueue(datumRoot, ip)
-			scheduler.DatumReceivePending()
+			peer.TreeStructure.Children = append(peer.TreeStructure.Children, child)
 		}
+
+		peer.TreeStructure.Name = peer.Name + "-" + time.Now().Format("2006-01-02_15-04")
+
+		fmt.Println(&peer.TreeStructure)
+
+		/*
+			scheduler.DatumReceivePending()
+
+			fmt.Println("number of children in root before recursion: ", len(scheduler.PeerDatabase[serverIp].TreeStructure.Children))
+
+			fmt.Println("========START RECURSION==========\n\n")*/
+		scheduler.DownloadNode((*filestructure.Node)(&peer.TreeStructure), serverIp)
+
+		/*
+			for _, child := range scheduler.PeerDatabase[serverIp].TreeStructure.Children {
+
+				if config.DebugSpam {
+					fmt.Println("Requesting child to insert")
+				}
+
+				datumRoot.Body = child.Hash[:]
+
+				scheduler.Enqueue(datumRoot, ip)
+				scheduler.DatumReceivePending()
+			}*/
 
 		fmt.Println("\n"+scheduler.PeerDatabase[serverIp].TreeStructure.Name, len(scheduler.PeerDatabase[serverIp].TreeStructure.Data))
 		for i := 0; i < len(scheduler.PeerDatabase[serverIp].TreeStructure.Data); i++ {
