@@ -118,6 +118,67 @@ func loadDirectory(path string) (filestructure.File, error) {
 	}
 }
 
+func handleBigfile(bigfile filestructure.Bigfile) ([]byte, error) {
+	var data []byte
+	for _, child := range bigfile.Data {
+		switch child := child.(type) {
+		case filestructure.Chunk:
+			data = append(data, child.Data...)
+		case filestructure.Bigfile:
+			childData, err := handleBigfile(child)
+			if err != nil {
+				return nil, err
+			}
+			data = append(data, childData...)
+		default:
+			return nil, fmt.Errorf("unexpected type in Bigfile: %T", child)
+		}
+	}
+	return data, nil
+}
+
+func saveFileStructure(path string, node filestructure.File) error {
+	fmt.Println("Saving : ", path)
+	switch node := node.(type) {
+	case filestructure.Chunk:
+		return os.WriteFile(path, node.Data, 0644)
+	case filestructure.Bigfile:
+		data, err := handleBigfile(node)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(path, data, 0644)
+	case filestructure.Directory:
+		if err := os.MkdirAll(path, 0755); err != nil {
+			return err
+		}
+		for _, child := range node.Data {
+			switch child := child.(type) {
+			case filestructure.Directory:
+				childPath := filepath.Join(path, child.Name)
+				if err := saveFileStructure(childPath, child); err != nil {
+					return err
+				}
+			case filestructure.Chunk:
+				childPath := filepath.Join(path, child.Name)
+				if err := saveFileStructure(childPath, child); err != nil {
+					return err
+				}
+			case filestructure.Bigfile:
+				childPath := filepath.Join(path, child.Name)
+				if err := saveFileStructure(childPath, child); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unexpected type: %T", child)
+			}
+		}
+	default:
+		return fmt.Errorf("unexpected type: %T", node)
+	}
+	return nil
+}
+
 // Print the file structure
 func printFileStructure(file filestructure.File, indent string, simplified bool) {
 	switch f := file.(type) {
@@ -153,6 +214,7 @@ func main() {
 		 */
 		printFileStructure(file, "", true)
 	}
+	saveFileStructure("test_arborescence_copy", file)
 
 	scheduler = udptypes.NewScheduler()
 	socket, err := udptypes.NewUDPSocket()

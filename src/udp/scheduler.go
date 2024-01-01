@@ -182,9 +182,55 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		sched.PeerDatabase[distantPeer.String()] = peerEdit
 		sched.SendRootReply(distantPeer, received.Id)
 	case GetDatum:
-		//TODO
+
 		if config.Debug {
 			fmt.Println("Getdatum from: " + peer.Name)
+		}
+
+		// reply with the resquested node datum
+		peerEdit := sched.PeerDatabase[distantPeer.String()]
+		node := peerEdit.TreeStructure.GetNode([32]byte(received.Body))
+		if node != nil {
+			var nodeBytes []byte
+			switch node := node.(type) {
+			case filestructure.Chunk:
+				nodeBytes = DatumBody{
+					Hash:  node.Hash,
+					Value: append([]byte{0}, node.Data...),
+				}.DatumBodyToBytes()
+			case filestructure.Bigfile:
+				nodeBytes = DatumBody{
+					Hash: node.Hash,
+				}.DatumBodyToBytes()
+				for _, child := range node.Data {
+					hash := child.(filestructure.Node).Hash
+					nodeBytes = append(nodeBytes, hash[:]...)
+				}
+			case filestructure.Directory:
+				nodeBytes = DatumBody{
+					Hash: node.Hash,
+				}.DatumBodyToBytes()
+				for _, child := range node.Data {
+					nodeBytes = append(nodeBytes, []byte(child.(filestructure.Node).Name)...)
+					hash := child.(filestructure.Node).Hash
+					nodeBytes = append(nodeBytes, hash[:]...)
+				}
+			}
+
+			msg := UDPMessage{
+				Id:     received.Id,
+				Type:   Datum,
+				Length: uint16(len(nodeBytes)),
+				Body:   nodeBytes,
+			}
+			sched.Enqueue(msg, distantPeer)
+		} else {
+			msg := UDPMessage{
+				Id:     received.Id,
+				Type:   NoDatum,
+				Length: 0,
+			}
+			sched.Enqueue(msg, distantPeer)
 		}
 	case HelloReply:
 		//TODO
