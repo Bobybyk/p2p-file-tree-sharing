@@ -143,20 +143,9 @@ func saveFileStructure(path string, node filestructure.File) error {
 	case filestructure.Chunk:
 		return os.WriteFile(path, node.Data, 0644)
 	case filestructure.Bigfile:
-		var data []byte
-		for _, child := range node.Data {
-			switch child := child.(type) {
-			case filestructure.Chunk:
-				data = append(data, child.Data...)
-			case filestructure.Bigfile:
-				data, err := handleBigfile(node)
-				if err != nil {
-					return err
-				}
-				return os.WriteFile(path, data, 0644)
-			default:
-				return fmt.Errorf("unexpected type in Bigfile: %T", child)
-			}
+		data, err := handleBigfile(node)
+		if err != nil {
+			return err
 		}
 		return os.WriteFile(path, data, 0644)
 	case filestructure.Directory:
