@@ -61,7 +61,7 @@ type SchedulerEntry struct {
 type Scheduler struct {
 	PacketSender  chan SchedulerEntry
 	DatumReceiver chan SchedulerEntry
-	PeerDatabase  map[string]PeerInfo
+	PeerDatabase  map[string](*PeerInfo)
 }
 
 type PeerInfo struct {

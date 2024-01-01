@@ -184,15 +184,37 @@ func main() {
 			}
 		}
 
-		_, _ = net.ResolveUDPAddr("udp", serverIp)
+		ip, _ := net.ResolveUDPAddr("udp", serverIp)
 
-		//TODO get peer's files
+		peer := scheduler.PeerDatabase[serverIp]
 
-		time.Sleep(time.Second * 2)
-		fmt.Println("\n\n\n"+scheduler.PeerDatabase[serverIp].TreeStructure.Name, len(scheduler.PeerDatabase[serverIp].TreeStructure.Data))
+		datumRoot := udptypes.UDPMessage{
+			Id:     uint32(rand.Int31()),
+			Type:   udptypes.GetDatum,
+			Length: 32,
+			Body:   peer.Root[:],
+		}
+
+		scheduler.Enqueue(datumRoot, ip)
+		scheduler.DatumReceivePending()
+
+		for _, child := range scheduler.PeerDatabase[serverIp].TreeStructure.Children {
+
+			if config.DebugSpam {
+				fmt.Println("Requesting child to insert")
+			}
+
+			datumRoot.Body = child.Hash[:]
+
+			scheduler.Enqueue(datumRoot, ip)
+			scheduler.DatumReceivePending()
+		}
+
+		fmt.Println("\n"+scheduler.PeerDatabase[serverIp].TreeStructure.Name, len(scheduler.PeerDatabase[serverIp].TreeStructure.Data))
 		for i := 0; i < len(scheduler.PeerDatabase[serverIp].TreeStructure.Data); i++ {
 			fmt.Println(scheduler.PeerDatabase[serverIp].TreeStructure.Data[i])
 		}
+
 	})
 
 	window.SetContent(container.NewBorder(nil, nil, leftPanel, nil, buttonDownloadServer))
