@@ -84,9 +84,7 @@ func BytesToDatumBody(bytes UDPMessageBytes) DatumBody {
 func (body DatumBody) DatumBodyToBytes() UDPMessageBytes {
 	bytes := make([]byte, len(body.Value)+32)
 
-	for i := 0; i < len(body.Hash); i++ {
-		bytes[i] = body.Hash[i]
-	}
+	copy(bytes, body.Hash[:])
 
 	for i := 0; i < len(body.Value); i++ {
 		bytes[i+32] = body.Value[i]
