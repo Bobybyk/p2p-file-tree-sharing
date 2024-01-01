@@ -118,6 +118,25 @@ func loadDirectory(path string) (filestructure.File, error) {
 	}
 }
 
+func handleBigfile(bigfile filestructure.Bigfile) ([]byte, error) {
+	var data []byte
+	for _, child := range bigfile.Data {
+		switch child := child.(type) {
+		case filestructure.Chunk:
+			data = append(data, child.Data...)
+		case filestructure.Bigfile:
+			childData, err := handleBigfile(child)
+			if err != nil {
+				return nil, err
+			}
+			data = append(data, childData...)
+		default:
+			return nil, fmt.Errorf("unexpected type in Bigfile: %T", child)
+		}
+	}
+	return data, nil
+}
+
 func saveFileStructure(path string, node filestructure.File) error {
 	fmt.Println("Saving : ", path)
 	switch node := node.(type) {
@@ -130,14 +149,11 @@ func saveFileStructure(path string, node filestructure.File) error {
 			case filestructure.Chunk:
 				data = append(data, child.Data...)
 			case filestructure.Bigfile:
-				for _, grandChild := range child.Data {
-					switch grandChild := grandChild.(type) {
-					case filestructure.Chunk:
-						data = append(data, grandChild.Data...)
-					default:
-						return fmt.Errorf("unexpected type in Bigfile: %T", grandChild)
-					}
+				data, err := handleBigfile(node)
+				if err != nil {
+					return err
 				}
+				return os.WriteFile(path, data, 0644)
 			default:
 				return fmt.Errorf("unexpected type in Bigfile: %T", child)
 			}
