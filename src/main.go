@@ -249,6 +249,7 @@ func main() {
 		ip, _ := net.ResolveUDPAddr("udp", serverIp)
 
 		peer := scheduler.PeerDatabase[serverIp]
+		peer.TreeStructure = filestructure.Directory{}
 
 		datumRoot := udptypes.UDPMessage{
 			Id:     uint32(rand.Int31()),
@@ -272,28 +273,8 @@ func main() {
 
 		peer.TreeStructure.Name = peer.Name + "-" + time.Now().Format("2006-01-02_15-04")
 
-		fmt.Println(&peer.TreeStructure)
-
-		/*
-			scheduler.DatumReceivePending()
-
-			fmt.Println("number of children in root before recursion: ", len(scheduler.PeerDatabase[serverIp].TreeStructure.Children))
-
-			fmt.Println("========START RECURSION==========\n\n")*/
 		scheduler.DownloadNode((*filestructure.Node)(&peer.TreeStructure), serverIp)
-
-		/*
-			for _, child := range scheduler.PeerDatabase[serverIp].TreeStructure.Children {
-
-				if config.DebugSpam {
-					fmt.Println("Requesting child to insert")
-				}
-
-				datumRoot.Body = child.Hash[:]
-
-				scheduler.Enqueue(datumRoot, ip)
-				scheduler.DatumReceivePending()
-			}*/
+		saveFileStructure(peer.TreeStructure.Name, peer.TreeStructure)
 
 		fmt.Println("\n"+scheduler.PeerDatabase[serverIp].TreeStructure.Name, len(scheduler.PeerDatabase[serverIp].TreeStructure.Data))
 		for i := 0; i < len(scheduler.PeerDatabase[serverIp].TreeStructure.Data); i++ {

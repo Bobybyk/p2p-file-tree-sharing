@@ -50,7 +50,6 @@ func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) {
 		sched.Enqueue(getDatum, ipAddr)
 
 		datumEntry := <-sched.DatumReceiver
-		datumFrom := datumEntry.From
 
 		body := BytesToDatumBody(datumEntry.Packet.Body)
 
@@ -60,8 +59,8 @@ func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) {
 				Data: body.Value[1:],
 				Hash: body.Hash,
 			}
-			if node.Name != "" {
-				newChunk.Name = node.Name
+			if child.Name != "" {
+				newChunk.Name = child.Name
 			}
 
 			node.Data = append(node.Data, newChunk)
@@ -71,8 +70,8 @@ func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) {
 				Hash: body.Hash,
 			}
 
-			if node.Name != "" {
-				newBig.Name = node.Name
+			if child.Name != "" {
+				newBig.Name = child.Name
 			}
 
 			for i := 1; i < len(body.Value); i += 32 {
@@ -85,7 +84,7 @@ func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) {
 		case 2: //directory
 
 			newDir := filestructure.Directory{
-				Name: sched.PeerDatabase[datumFrom.String()].Name + "-" + time.Now().Format("2006-01-02_15-04"),
+				Name: child.Name,
 				Hash: body.Hash,
 			}
 			for i := 1; i < len(body.Value); i += 64 {
@@ -94,14 +93,9 @@ func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) {
 					Hash: [32]byte(body.Value[i+32 : i+64]),
 				})
 			}
-			if child.Name != "" {
-				newDir.Name = child.Name
-			}
 			node.Data = append(node.Data, newDir)
 		}
 	}
-
-	fmt.Println("=========== START RECURSION =========")
 
 	for _, data := range node.Data {
 		if datanode, ok := data.(filestructure.Directory); ok {
@@ -110,7 +104,6 @@ func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) {
 			sched.DownloadNode((*filestructure.Node)(&datanode), ip)
 		}
 	}
-	fmt.Println("=====================================")
 }
 
 func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
