@@ -2,15 +2,16 @@ package filestructure
 
 type File interface{}
 
-type EmptyNode struct {
-	Name string
+type Child struct {
 	Hash [32]byte
+	Name string
 }
 
 type Node struct {
-	Name string
-	Hash [32]byte
-	Data []File
+	Name     string
+	Hash     [32]byte
+	Data     []File
+	Children []Child
 }
 
 type Chunk struct {

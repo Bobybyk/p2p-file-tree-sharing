@@ -61,13 +61,13 @@ type SchedulerEntry struct {
 type Scheduler struct {
 	PacketSender  chan SchedulerEntry
 	DatumReceiver chan SchedulerEntry
-	PeerDatabase  map[string]PeerInfo
+	PeerDatabase  map[string](*PeerInfo)
 }
 
 type PeerInfo struct {
 	Name           string
 	PublicKey      []byte
 	Root           [32]byte
-	TreeStructure  filestructure.Directory
+	TreeStructure  *filestructure.Directory
 	LastPacketSent *SchedulerEntry
 }
