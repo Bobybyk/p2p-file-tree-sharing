@@ -27,7 +27,7 @@ func verifyDatumHash(datum DatumBody) bool {
 	return hash == datum.Hash
 }
 
-func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) {
+func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) *filestructure.Node {
 
 	ipAddr, _ := net.ResolveUDPAddr("udp", ip)
 
@@ -37,8 +37,6 @@ func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) {
 		Length: 32,
 		Body:   node.Hash[:],
 	}
-
-	fmt.Println("number of children next: ", len(node.Children))
 
 	for _, child := range node.Children {
 		if config.DebugSpam {
@@ -97,13 +95,15 @@ func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) {
 		}
 	}
 
-	for _, data := range node.Data {
+	for i, data := range node.Data {
 		if datanode, ok := data.(filestructure.Directory); ok {
-			sched.DownloadNode((*filestructure.Node)(&datanode), ip)
+			node.Data[i] = (filestructure.Directory)(*sched.DownloadNode((*filestructure.Node)(&datanode), ip))
 		} else if datanode, ok := data.(filestructure.Bigfile); ok {
-			sched.DownloadNode((*filestructure.Node)(&datanode), ip)
+			node.Data[i] = (filestructure.Bigfile)(*sched.DownloadNode((*filestructure.Node)(&datanode), ip))
 		}
 	}
+
+	return node
 }
 
 func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
@@ -287,10 +287,6 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 	default:
 		fmt.Println(received.Type)
 	}
-}
-
-func (sched *Scheduler) DatumReceivePending() {
-
 }
 
 func (sched *Scheduler) SendPending(sock *UDPSock) {

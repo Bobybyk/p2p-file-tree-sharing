@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"log"
@@ -155,17 +156,17 @@ func saveFileStructure(path string, node filestructure.File) error {
 		for _, child := range node.Data {
 			switch child := child.(type) {
 			case filestructure.Directory:
-				childPath := filepath.Join(path, child.Name)
+				childPath := filepath.Join(path, string(bytes.Trim([]byte(child.Name), "\x00")))
 				if err := saveFileStructure(childPath, child); err != nil {
 					return err
 				}
 			case filestructure.Chunk:
-				childPath := filepath.Join(path, child.Name)
+				childPath := filepath.Join(path, string(bytes.Trim([]byte(child.Name), "\x00")))
 				if err := saveFileStructure(childPath, child); err != nil {
 					return err
 				}
 			case filestructure.Bigfile:
-				childPath := filepath.Join(path, child.Name)
+				childPath := filepath.Join(path, string(bytes.Trim([]byte(child.Name), "\x00")))
 				if err := saveFileStructure(childPath, child); err != nil {
 					return err
 				}
@@ -214,7 +215,7 @@ func main() {
 		 */
 		printFileStructure(file, "", true)
 	}
-	saveFileStructure("test_arborescence_copy", file)
+	//saveFileStructure("test_arborescence_copy", file)
 
 	scheduler = udptypes.NewScheduler()
 	socket, err := udptypes.NewUDPSocket()
@@ -249,7 +250,7 @@ func main() {
 		ip, _ := net.ResolveUDPAddr("udp", serverIp)
 
 		peer := scheduler.PeerDatabase[serverIp]
-		peer.TreeStructure = filestructure.Directory{}
+		peer.TreeStructure = &filestructure.Directory{}
 
 		datumRoot := udptypes.UDPMessage{
 			Id:     uint32(rand.Int31()),
@@ -273,12 +274,19 @@ func main() {
 
 		peer.TreeStructure.Name = peer.Name + "-" + time.Now().Format("2006-01-02_15-04")
 
-		scheduler.DownloadNode((*filestructure.Node)(&peer.TreeStructure), serverIp)
-		saveFileStructure(peer.TreeStructure.Name, peer.TreeStructure)
+		fmt.Printf("%p\n", peer.TreeStructure)
 
-		fmt.Println("\n"+scheduler.PeerDatabase[serverIp].TreeStructure.Name, len(scheduler.PeerDatabase[serverIp].TreeStructure.Data))
-		for i := 0; i < len(scheduler.PeerDatabase[serverIp].TreeStructure.Data); i++ {
-			fmt.Println(scheduler.PeerDatabase[serverIp].TreeStructure.Data[i])
+		newNode := (*filestructure.Directory)(scheduler.DownloadNode((*filestructure.Node)(peer.TreeStructure), serverIp))
+		//fmt.Println("Printing node: ", newNode)
+		/*
+			fmt.Println("\n"+scheduler.PeerDatabase[serverIp].TreeStructure.Name, len(scheduler.PeerDatabase[serverIp].TreeStructure.Data))
+			for i := 0; i < len(scheduler.PeerDatabase[serverIp].TreeStructure.Data); i++ {
+				fmt.Println(scheduler.PeerDatabase[serverIp].TreeStructure.Data[i])
+			}*/
+
+		err := saveFileStructure("../"+newNode.Name, *newNode)
+		if err != nil {
+			fmt.Println("saving file structure: ", err.Error())
 		}
 
 	})

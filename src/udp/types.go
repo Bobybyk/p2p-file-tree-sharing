@@ -68,6 +68,6 @@ type PeerInfo struct {
 	Name           string
 	PublicKey      []byte
 	Root           [32]byte
-	TreeStructure  filestructure.Directory
+	TreeStructure  *filestructure.Directory
 	LastPacketSent *SchedulerEntry
 }
