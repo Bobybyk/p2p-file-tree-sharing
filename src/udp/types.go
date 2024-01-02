@@ -3,6 +3,7 @@ package udptypes
 import (
 	"net"
 	"protocoles-internet-2023/filestructure"
+	"sync"
 	"time"
 )
 
@@ -59,6 +60,7 @@ type SchedulerEntry struct {
 }
 
 type Scheduler struct {
+	Lock           sync.Mutex
 	Socket         UDPSock
 	PacketSender   chan SchedulerEntry
 	PacketReceiver chan SchedulerEntry

@@ -9,6 +9,7 @@ import (
 	"protocoles-internet-2023/config"
 	"protocoles-internet-2023/filestructure"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -16,12 +17,15 @@ import (
 Scheduler "constructor"
 */
 func NewScheduler(sock UDPSock) *Scheduler {
-	return &Scheduler{
+	sched := Scheduler{
 		Socket:         sock,
 		PeerDatabase:   make(map[string]*PeerInfo),
 		PacketSender:   make(chan SchedulerEntry),
 		PacketReceiver: make(chan SchedulerEntry),
+		Lock:           sync.Mutex{},
 	}
+
+	return &sched
 }
 
 func verifyDatumHash(datum DatumBody) bool {
@@ -330,6 +334,9 @@ This function signals to the Launch function that a packet is waiting to be sent
 */
 func (sched *Scheduler) SendPacket(message UDPMessage, dest *net.UDPAddr) (SchedulerEntry, error) {
 
+	sched.Lock.Lock()
+	defer sched.Lock.Unlock()
+
 	timeout := 1
 	for i := 0; i < 3; i++ {
 
@@ -345,6 +352,9 @@ func (sched *Scheduler) SendPacket(message UDPMessage, dest *net.UDPAddr) (Sched
 			}
 			return response, nil
 		case <-time.After(time.Second * time.Duration(timeout)):
+			if config.Debug {
+				fmt.Println("Packet lost -> reemitting")
+			}
 			timeout *= 2
 		}
 	}
