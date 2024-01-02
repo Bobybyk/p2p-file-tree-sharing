@@ -112,7 +112,8 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 	if received.Type == HelloReply || received.Type == Hello {
 		body := BytesToHelloBody(received.Body)
 		sched.PeerDatabase[from.String()] = &PeerInfo{
-			Name: body.Name,
+			Name:           body.Name,
+			LastPacketSent: new(SchedulerEntry),
 		}
 	}
 
@@ -125,7 +126,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		return
 	}
 
-	if received.Type == NoOp {
+	if (peer.LastPacketSent == nil || peer.LastPacketSent.Packet.Id != received.Id) && received.Type >= NatTraversalRequest {
 		fmt.Println("Unrequested Packet (" + strconv.Itoa(int(received.Type)) + ") from " + peer.Name + " -> throwing it away")
 		return
 	}
@@ -230,16 +231,19 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		if config.Debug {
 			fmt.Println("HelloReply From: " + peer.Name)
 		}
+		peer.LastPacketSent = nil
 	case PublicKeyReply:
 		//TODO
 		if config.Debug {
 			fmt.Println("=============\nPublicKey from: " + peer.Name + "\n=============")
 		}
+		peer.LastPacketSent = nil
 	case RootReply:
 		//TODO
 		if config.Debug {
 			fmt.Println("RootReply from: " + peer.Name)
 		}
+		peer.LastPacketSent = nil
 	case Datum:
 		if !verifyDatumHash(BytesToDatumBody(received.Body)) {
 			if config.Debug {
@@ -271,6 +275,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			Time:   time.Now(),
 			Packet: received,
 		}
+		peer.LastPacketSent = nil
 		select {
 		case sched.DatumReceiver <- entry: //try to send packet to receive packet
 		default: // if the reader is busy, get ignore packet
@@ -284,21 +289,26 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		if config.Debug {
 			fmt.Println("NoDatum from: " + peer.Name)
 		}
+		peer.LastPacketSent = nil
 	default:
 		fmt.Println(received.Type)
 	}
 }
 
 func (sched *Scheduler) SendPending(sock *UDPSock) {
-	var msgToSend SchedulerEntry
 	for {
 		select {
-		case msgToSend = <-sched.PacketSender:
+		case msgToSend := <-sched.PacketSender:
 			err := sock.SendPacket(msgToSend.To, msgToSend.Packet)
 			if err == nil && config.DebugSpam {
 				fmt.Println("Message sent on socket")
 			}
 			if msgToSend.Packet.Type < NatTraversalRequest {
+
+				peer, ok := sched.PeerDatabase[msgToSend.To.String()]
+				if ok {
+					peer.LastPacketSent = &msgToSend
+				}
 
 				if config.DebugSpam {
 					fmt.Println("Memorized packet")
