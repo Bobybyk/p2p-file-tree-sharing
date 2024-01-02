@@ -125,9 +125,17 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		}
 		return
 	}
+	/*
+		if (peer.LastPacketSent == nil || peer.LastPacketSent.Packet.Id != received.Id) && received.Type >= NatTraversalRequest && received.Type != HelloReply {
+			fmt.Println("Unrequested Packet (" + strconv.Itoa(int(received.Type)) + ") from " + peer.Name + " -> throwing it away")
+			return
+		}*/
 
-	if (peer.LastPacketSent == nil || peer.LastPacketSent.Packet.Id != received.Id) && received.Type >= NatTraversalRequest {
-		fmt.Println("Unrequested Packet (" + strconv.Itoa(int(received.Type)) + ") from " + peer.Name + " -> throwing it away")
+	if peer.LastPacketSent == nil && received.Type >= NatTraversalRequest && received.Type != HelloReply {
+		fmt.Println("Unrequested Packet (" + strconv.Itoa(int(received.Type)) + ") from " + peer.Name + " (not waiting for response) -> throwing it away")
+		return
+	} else if (peer.LastPacketSent != nil && peer.LastPacketSent.Packet.Id != received.Id) && received.Type >= NatTraversalRequest && received.Type != HelloReply {
+		fmt.Println("Unrequested Packet (" + strconv.Itoa(int(received.Type)) + ") from " + peer.Name + " (wrong ID) -> throwing it away")
 		return
 	}
 
@@ -291,7 +299,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		}
 		peer.LastPacketSent = nil
 	default:
-		fmt.Println(received.Type)
+		fmt.Println(received.Type, " from: ", peer.Name)
 	}
 }
 
@@ -299,20 +307,22 @@ func (sched *Scheduler) SendPending(sock *UDPSock) {
 	for {
 		select {
 		case msgToSend := <-sched.PacketSender:
-			err := sock.SendPacket(msgToSend.To, msgToSend.Packet)
-			if err == nil && config.DebugSpam {
-				fmt.Println("Message sent on socket")
-			}
 			if msgToSend.Packet.Type < NatTraversalRequest {
 
-				peer, ok := sched.PeerDatabase[msgToSend.To.String()]
-				if ok {
+				if peer, ok := sched.PeerDatabase[msgToSend.To.String()]; ok {
 					peer.LastPacketSent = &msgToSend
+				} else {
+					fmt.Println("no peer")
 				}
 
 				if config.DebugSpam {
 					fmt.Println("Memorized packet")
 				}
+			}
+
+			err := sock.SendPacket(msgToSend.To, msgToSend.Packet)
+			if err == nil && config.DebugSpam {
+				fmt.Println("Message sent on socket")
 			}
 		}
 	}
