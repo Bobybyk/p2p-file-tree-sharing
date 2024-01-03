@@ -217,11 +217,11 @@ func main() {
 	}
 	//saveFileStructure("test_arborescence_copy", file)
 
-	scheduler = udptypes.NewScheduler()
 	socket, err := udptypes.NewUDPSocket()
 	if err != nil {
 		log.Fatal("NewUDPSocket:" + err.Error())
 	}
+	scheduler = udptypes.NewScheduler(*socket)
 	go scheduler.Launch(socket)
 
 	appli := app.New()
@@ -259,9 +259,12 @@ func main() {
 			Body:   peer.Root[:],
 		}
 
-		scheduler.Enqueue(datumRoot, ip)
+		packet, err := scheduler.SendPacket(datumRoot, ip)
+		if err != nil {
+			log.Fatal("Could not send GetDatum packet: ", err.Error())
+		}
 
-		node := <-scheduler.DatumReceiver
+		node := packet
 		body := udptypes.BytesToDatumBody(node.Packet.Body)
 
 		for i := 1; i < len(body.Value); i += 64 {
@@ -274,17 +277,13 @@ func main() {
 
 		peer.TreeStructure.Name = peer.Name + "-" + time.Now().Format("2006-01-02_15-04")
 
-		fmt.Printf("%p\n", peer.TreeStructure)
+		newNode, err := scheduler.DownloadNode((*filestructure.Node)(peer.TreeStructure), serverIp)
+		if err != nil {
+			fmt.Println("Download files:", err.Error())
+			return
+		}
 
-		newNode := (*filestructure.Directory)(scheduler.DownloadNode((*filestructure.Node)(peer.TreeStructure), serverIp))
-		//fmt.Println("Printing node: ", newNode)
-		/*
-			fmt.Println("\n"+scheduler.PeerDatabase[serverIp].TreeStructure.Name, len(scheduler.PeerDatabase[serverIp].TreeStructure.Data))
-			for i := 0; i < len(scheduler.PeerDatabase[serverIp].TreeStructure.Data); i++ {
-				fmt.Println(scheduler.PeerDatabase[serverIp].TreeStructure.Data[i])
-			}*/
-
-		err := saveFileStructure("../"+newNode.Name, *newNode)
+		err = saveFileStructure("../"+newNode.Name, *(*filestructure.Directory)(newNode))
 		if err != nil {
 			fmt.Println("saving file structure: ", err.Error())
 		}
@@ -354,7 +353,11 @@ func HelloToServer() {
 		Body:   msgBody,
 	}
 
-	scheduler.Enqueue(msg, distantAddr)
+	_, err = scheduler.SendPacket(msg, distantAddr)
+	if err != nil {
+		fmt.Println("Could not send: ", err.Error())
+		return
+	}
 }
 
 func makeMenu() *fyne.MainMenu {

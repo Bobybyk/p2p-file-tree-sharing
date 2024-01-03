@@ -16,7 +16,7 @@ func NewUDPSocket() (*UDPSock, error) {
 	return &sock, err
 }
 
-func (sock *UDPSock) SendPacket(addr *net.UDPAddr, pack UDPMessage) error {
+func (sock *UDPSock) SendPacket(pack UDPMessage, addr *net.UDPAddr) error {
 
 	bytes := pack.MessageToBytes()
 

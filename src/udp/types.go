@@ -3,6 +3,7 @@ package udptypes
 import (
 	"net"
 	"protocoles-internet-2023/filestructure"
+	"sync"
 	"time"
 )
 
@@ -59,15 +60,16 @@ type SchedulerEntry struct {
 }
 
 type Scheduler struct {
-	PacketSender  chan SchedulerEntry
-	DatumReceiver chan SchedulerEntry
-	PeerDatabase  map[string](*PeerInfo)
+	Lock           sync.Mutex
+	Socket         UDPSock
+	PacketSender   chan SchedulerEntry
+	PacketReceiver chan SchedulerEntry
+	PeerDatabase   map[string](*PeerInfo)
 }
 
 type PeerInfo struct {
-	Name           string
-	PublicKey      []byte
-	Root           [32]byte
-	TreeStructure  *filestructure.Directory
-	LastPacketSent *SchedulerEntry
+	Name          string
+	PublicKey     []byte
+	Root          [32]byte
+	TreeStructure *filestructure.Directory
 }
