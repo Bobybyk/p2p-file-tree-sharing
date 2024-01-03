@@ -7,7 +7,9 @@ import (
 
 func NewUDPSocket() (*UDPSock, error) {
 
-	ret, err := net.ListenUDP("udp", &net.UDPAddr{})
+	ret, err := net.ListenUDP("udp", &net.UDPAddr{
+		Port: 42069,
+	})
 
 	sock := UDPSock{
 		Socket: ret,
@@ -20,12 +22,12 @@ func (sock *UDPSock) SendPacket(pack UDPMessage, addr *net.UDPAddr) error {
 
 	bytes := pack.MessageToBytes()
 
-	bytesWritten, err := sock.Socket.WriteTo(bytes, addr)
-	if bytesWritten != len(bytes) {
-		err = errors.New("message truncated")
+	bytesWritten, err := sock.Socket.WriteToUDP(bytes, addr)
+	if bytesWritten != len(bytes) || err != nil {
+		return errors.New("message truncated")
 	}
 
-	return err
+	return nil
 }
 
 func (sock *UDPSock) ReceivePacket() (UDPMessage, net.Addr, error) {
@@ -35,7 +37,7 @@ func (sock *UDPSock) ReceivePacket() (UDPMessage, net.Addr, error) {
 
 	received := make(UDPMessageBytes, size)
 
-	sizeReceived, from, err := sock.Socket.ReadFrom(received)
+	sizeReceived, from, err := sock.Socket.ReadFromUDP(received)
 	if err != nil {
 		return UDPMessage{}, nil, nil
 	}
