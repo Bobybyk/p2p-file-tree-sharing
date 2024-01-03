@@ -21,7 +21,7 @@ func NewScheduler(sock UDPSock) *Scheduler {
 		Socket:         sock,
 		PeerDatabase:   make(map[string]*PeerInfo),
 		PacketSender:   make(chan SchedulerEntry),
-		PacketReceiver: make(chan SchedulerEntry),
+		PacketReceiver: make(chan SchedulerEntry, 1),
 		Lock:           sync.Mutex{},
 	}
 
@@ -33,7 +33,7 @@ func verifyDatumHash(datum DatumBody) bool {
 	return hash == datum.Hash
 }
 
-func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) *filestructure.Node {
+func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) (*filestructure.Node, error) {
 
 	ipAddr, _ := net.ResolveUDPAddr("udp", ip)
 
@@ -53,7 +53,8 @@ func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) *files
 
 		packet, err := sched.SendPacket(getDatum, ipAddr)
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Println("Downloading node: ", err.Error())
+			return nil, errors.New("downloading node")
 		}
 
 		body := BytesToDatumBody(packet.Packet.Body)
@@ -104,13 +105,23 @@ func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) *files
 
 	for i, data := range node.Data {
 		if datanode, ok := data.(filestructure.Directory); ok {
-			node.Data[i] = (filestructure.Directory)(*sched.DownloadNode((*filestructure.Node)(&datanode), ip))
+			nodeTmp, err := sched.DownloadNode((*filestructure.Node)(&datanode), ip)
+			if err != nil {
+				fmt.Println("downloading child Directory: ", err.Error())
+				return nil, errors.New("downloading child directory")
+			}
+			node.Data[i] = (filestructure.Directory)(*nodeTmp)
 		} else if datanode, ok := data.(filestructure.Bigfile); ok {
-			node.Data[i] = (filestructure.Bigfile)(*sched.DownloadNode((*filestructure.Node)(&datanode), ip))
+			nodeTmp, err := sched.DownloadNode((*filestructure.Node)(&datanode), ip)
+			if err != nil {
+				fmt.Println("downloading child bigfile: ", err.Error())
+				return nil, errors.New("downloading child bigfile")
+			}
+			node.Data[i] = (filestructure.Bigfile)(*nodeTmp)
 		}
 	}
 
-	return node
+	return node, nil
 }
 
 func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
@@ -232,32 +243,33 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		if config.Debug {
 			fmt.Println("HelloReply From: " + peer.Name)
 		}
-		entry := SchedulerEntry{
-			From:   from,
-			Time:   time.Now(),
-			Packet: received,
-		}
-		sched.PacketReceiver <- entry
+		fallthrough
 	case PublicKeyReply:
 		if config.Debug {
 			fmt.Println("PublicKey from: " + peer.Name)
 		}
-		entry := SchedulerEntry{
-			From:   from,
-			Time:   time.Now(),
-			Packet: received,
-		}
-		sched.PacketReceiver <- entry
+		fallthrough
 	case RootReply:
 		if config.Debug {
 			fmt.Println("RootReply from: " + peer.Name)
 		}
+		fallthrough
+	case NoDatum:
+		if config.Debug {
+			fmt.Println("NoDatum from: " + peer.Name)
+		}
 		entry := SchedulerEntry{
 			From:   from,
 			Time:   time.Now(),
 			Packet: received,
 		}
-		sched.PacketReceiver <- entry
+		select {
+		case sched.PacketReceiver <- entry:
+		default:
+			if config.Debug {
+				fmt.Println("Packet already pending, throwing away")
+			}
+		}
 	case Datum:
 		if !verifyDatumHash(BytesToDatumBody(received.Body)) {
 			if config.Debug {
@@ -289,17 +301,13 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			Time:   time.Now(),
 			Packet: received,
 		}
-		sched.PacketReceiver <- entry
-	case NoDatum:
-		if config.Debug {
-			fmt.Println("NoDatum from: " + peer.Name)
+		select {
+		case sched.PacketReceiver <- entry:
+		default:
+			if config.Debug {
+				fmt.Println("Packet already pending, throwing away")
+			}
 		}
-		entry := SchedulerEntry{
-			From:   from,
-			Time:   time.Now(),
-			Packet: received,
-		}
-		sched.PacketReceiver <- entry
 	default:
 		fmt.Println(received.Type, " from: ", peer.Name)
 	}
@@ -348,9 +356,10 @@ func (sched *Scheduler) SendPacket(message UDPMessage, dest *net.UDPAddr) (Sched
 		select {
 		case response := <-sched.PacketReceiver:
 			if response.Packet.Id != message.Id {
-				return SchedulerEntry{}, errors.New("wrong response ID")
+				fmt.Println("wrong response ID\nExpected: " + strconv.Itoa(int(message.Id)) + "\nReceived: " + strconv.Itoa(int(response.Packet.Id)))
+			} else {
+				return response, nil
 			}
-			return response, nil
 		case <-time.After(time.Second * time.Duration(timeout)):
 			if config.Debug {
 				fmt.Println("Packet lost -> reemitting")

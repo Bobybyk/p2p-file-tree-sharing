@@ -261,7 +261,7 @@ func main() {
 
 		packet, err := scheduler.SendPacket(datumRoot, ip)
 		if err != nil {
-			log.Fatal("Could not send GetDatum packet")
+			log.Fatal("Could not send GetDatum packet: ", err.Error())
 		}
 
 		node := packet
@@ -277,9 +277,13 @@ func main() {
 
 		peer.TreeStructure.Name = peer.Name + "-" + time.Now().Format("2006-01-02_15-04")
 
-		newNode := (*filestructure.Directory)(scheduler.DownloadNode((*filestructure.Node)(peer.TreeStructure), serverIp))
+		newNode, err := scheduler.DownloadNode((*filestructure.Node)(peer.TreeStructure), serverIp)
+		if err != nil {
+			fmt.Println("Download files:", err.Error())
+			return
+		}
 
-		err = saveFileStructure("../"+newNode.Name, *newNode)
+		err = saveFileStructure("../"+newNode.Name, *(*filestructure.Directory)(newNode))
 		if err != nil {
 			fmt.Println("saving file structure: ", err.Error())
 		}
@@ -351,7 +355,7 @@ func HelloToServer() {
 
 	_, err = scheduler.SendPacket(msg, distantAddr)
 	if err != nil {
-		fmt.Println("Could not send ")
+		fmt.Println("Could not send: ", err.Error())
 		return
 	}
 }
