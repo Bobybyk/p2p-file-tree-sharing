@@ -221,7 +221,13 @@ func main() {
 	if err != nil {
 		log.Fatal("NewUDPSocket:" + err.Error())
 	}
-	scheduler = udptypes.NewScheduler(*socket)
+
+	exported, ok := file.(filestructure.Directory)
+	if !ok {
+		log.Fatal("Root is not a directory")
+	}
+
+	scheduler = udptypes.NewScheduler(*socket, &exported)
 	go scheduler.Launch(socket)
 
 	appli := app.New()
@@ -250,7 +256,7 @@ func main() {
 		ip, _ := net.ResolveUDPAddr("udp", serverIp)
 
 		peer := scheduler.PeerDatabase[serverIp]
-		peer.TreeStructure = &filestructure.Directory{}
+		downloadedNode := &filestructure.Directory{}
 
 		datumRoot := udptypes.UDPMessage{
 			Id:     uint32(rand.Int31()),
@@ -272,12 +278,13 @@ func main() {
 				Name: string(body.Value[i : i+32]),
 				Hash: [32]byte(body.Value[i+32 : i+64]),
 			}
-			peer.TreeStructure.Children = append(peer.TreeStructure.Children, child)
+
+			downloadedNode.Children = append(downloadedNode.Children, child)
 		}
 
-		peer.TreeStructure.Name = peer.Name + "-" + time.Now().Format("2006-01-02_15-04")
+		downloadedNode.Name = peer.Name + "-" + time.Now().Format("2006-01-02_15-04")
 
-		newNode, err := scheduler.DownloadNode((*filestructure.Node)(peer.TreeStructure), serverIp)
+		newNode, err := scheduler.DownloadNode((*filestructure.Node)(downloadedNode), serverIp)
 		if err != nil {
 			fmt.Println("Download files:", err.Error())
 			return
