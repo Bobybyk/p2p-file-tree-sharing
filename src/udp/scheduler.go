@@ -21,7 +21,7 @@ func NewScheduler(sock UDPSock) *Scheduler {
 		Socket:         sock,
 		PeerDatabase:   make(map[string]*PeerInfo),
 		PacketSender:   make(chan SchedulerEntry),
-		PacketReceiver: make(chan SchedulerEntry, 1),
+		PacketReceiver: make(chan SchedulerEntry),
 		Lock:           sync.Mutex{},
 	}
 
@@ -243,33 +243,32 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		if config.Debug {
 			fmt.Println("HelloReply From: " + peer.Name)
 		}
-		fallthrough
+		entry := SchedulerEntry{
+			From:   from,
+			Time:   time.Now(),
+			Packet: received,
+		}
+		sched.PacketReceiver <- entry
 	case PublicKeyReply:
 		if config.Debug {
 			fmt.Println("PublicKey from: " + peer.Name)
-		}
-		fallthrough
-	case RootReply:
-		if config.Debug {
-			fmt.Println("RootReply from: " + peer.Name)
-		}
-		fallthrough
-	case NoDatum:
-		if config.Debug {
-			fmt.Println("NoDatum from: " + peer.Name)
 		}
 		entry := SchedulerEntry{
 			From:   from,
 			Time:   time.Now(),
 			Packet: received,
 		}
-		select {
-		case sched.PacketReceiver <- entry:
-		default:
-			if config.Debug {
-				fmt.Println("Packet already pending, throwing away")
-			}
+		sched.PacketReceiver <- entry
+	case RootReply:
+		if config.Debug {
+			fmt.Println("RootReply from: " + peer.Name)
 		}
+		entry := SchedulerEntry{
+			From:   from,
+			Time:   time.Now(),
+			Packet: received,
+		}
+		sched.PacketReceiver <- entry
 	case Datum:
 		if !verifyDatumHash(BytesToDatumBody(received.Body)) {
 			if config.Debug {
@@ -301,13 +300,17 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			Time:   time.Now(),
 			Packet: received,
 		}
-		select {
-		case sched.PacketReceiver <- entry:
-		default:
-			if config.Debug {
-				fmt.Println("Packet already pending, throwing away")
-			}
+		sched.PacketReceiver <- entry
+	case NoDatum:
+		if config.Debug {
+			fmt.Println("NoDatum from: " + peer.Name)
 		}
+		entry := SchedulerEntry{
+			From:   from,
+			Time:   time.Now(),
+			Packet: received,
+		}
+		sched.PacketReceiver <- entry
 	default:
 		fmt.Println(received.Type, " from: ", peer.Name)
 	}
