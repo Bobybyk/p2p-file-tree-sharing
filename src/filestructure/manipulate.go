@@ -1,26 +1,36 @@
 package filestructure
 
-func (root *Directory) GetNode(hash [32]byte) File {
-	for i := 0; i < len(root.Data); i++ {
+func (root *Node) GetNode(hash [32]byte) File {
 
-		if ch, ok := root.Data[i].(Chunk); ok && ch.Hash == hash {
-			return root.Data[i]
+	if root.Hash == hash {
+		return (Directory)(*root)
+	}
+
+	for i := 0; i < len(root.Data); i++ {
+		if ch, ok := root.Data[i].(Chunk); ok {
+			if ch.Hash == hash {
+				return ch
+			}
+		} else if dir, ok := root.Data[i].(Directory); ok {
+			if dir.Hash == hash {
+				return dir
+			}
 		} else if big, ok := root.Data[i].(Bigfile); ok {
-			return big.GetNode(hash)
+			if big.Hash == hash {
+				return big
+			}
 		}
 	}
 
-	return nil
-}
-
-func (big *Bigfile) GetNode(hash [32]byte) File {
-
-	for i := 0; i < len(big.Data); i++ {
-
-		if ch, ok := big.Data[i].(Chunk); ok && ch.Hash == hash {
-			return big.Data[i]
-		} else if nextBig, ok := big.Data[i].(Bigfile); ok {
-			return nextBig.GetNode(hash)
+	for i := 0; i < len(root.Data); i++ {
+		if dir, ok := root.Data[i].(Directory); ok {
+			if found := (*Node)(&dir).GetNode(hash); found != nil {
+				return found
+			}
+		} else if big, ok := root.Data[i].(Bigfile); ok {
+			if found := (*Node)(&big).GetNode(hash); found != nil {
+				return found
+			}
 		}
 	}
 
