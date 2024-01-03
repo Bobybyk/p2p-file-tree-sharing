@@ -1,9 +1,5 @@
 package filestructure
 
-import (
-	"errors"
-)
-
 func (root *Directory) GetNode(hash [32]byte) File {
 	for i := 0; i < len(root.Data); i++ {
 
@@ -29,22 +25,4 @@ func (big *Bigfile) GetNode(hash [32]byte) File {
 	}
 
 	return nil
-}
-
-func (root *Node) GetParentNode(hash [32]byte) (*Node, string, error) {
-
-	for _, child := range root.Children {
-		if child.Hash == hash {
-			return (*Node)(root), child.Name, nil
-		}
-	}
-
-	for _, data := range root.Data {
-		if node, ok := data.(Node); ok {
-			if parent, n, _ := node.GetParentNode(hash); parent != nil {
-				return parent, n, nil
-			}
-		}
-	}
-	return &Node{}, "", errors.New("Node not found")
 }

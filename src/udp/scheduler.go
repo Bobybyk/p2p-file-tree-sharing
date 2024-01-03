@@ -16,12 +16,13 @@ import (
 /*
 Scheduler "constructor"
 */
-func NewScheduler(sock UDPSock) *Scheduler {
+func NewScheduler(sock UDPSock, files *filestructure.Directory) *Scheduler {
 	sched := Scheduler{
 		Socket:         sock,
 		PeerDatabase:   make(map[string]*PeerInfo),
 		PacketSender:   make(chan SchedulerEntry),
 		PacketReceiver: make(chan SchedulerEntry),
+		ExportedFiles:  files,
 		Lock:           sync.Mutex{},
 	}
 
@@ -187,8 +188,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		}
 
 		// reply with the resquested node datum
-		peerEdit := sched.PeerDatabase[distantPeer.String()]
-		node := peerEdit.TreeStructure.GetNode([32]byte(received.Body))
+		node := sched.ExportedFiles.GetNode([32]byte(received.Body))
 		if node != nil {
 			var nodeBytes []byte
 			switch node := node.(type) {

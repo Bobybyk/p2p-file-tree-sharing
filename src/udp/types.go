@@ -65,11 +65,11 @@ type Scheduler struct {
 	PacketSender   chan SchedulerEntry
 	PacketReceiver chan SchedulerEntry
 	PeerDatabase   map[string](*PeerInfo)
+	ExportedFiles  *filestructure.Directory
 }
 
 type PeerInfo struct {
-	Name          string
-	PublicKey     []byte
-	Root          [32]byte
-	TreeStructure *filestructure.Directory
+	Name      string
+	PublicKey []byte
+	Root      [32]byte
 }
