@@ -44,7 +44,6 @@ func (udpMsg UDPMessage) MessageToBytes() UDPMessageBytes {
 		bytes[7+i] = udpMsg.Body[i]
 	}
 
-	fmt.Println(len(bytes))
 	if udpMsg.PrivateKey != nil {
 		signature, err := crypto.GenerateSignature(bytes, udpMsg.PrivateKey)
 		if err != nil {
@@ -52,8 +51,6 @@ func (udpMsg UDPMessage) MessageToBytes() UDPMessageBytes {
 		}
 		bytes = append(bytes, signature...)
 	}
-
-	fmt.Println(len(bytes))
 
 	return bytes
 }

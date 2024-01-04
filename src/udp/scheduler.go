@@ -431,10 +431,11 @@ func (sched *Scheduler) SendHelloReply(dest *net.UDPAddr, id uint32) {
 	}.HelloBodyToBytes()
 
 	msg := UDPMessage{
-		Id:     id,
-		Type:   HelloReply,
-		Length: uint16(len(body)),
-		Body:   body,
+		Id:         id,
+		Type:       HelloReply,
+		Length:     uint16(len(body)),
+		Body:       body,
+		PrivateKey: sched.PrivateKey,
 	}
 	err := sched.Socket.SendPacket(msg, dest)
 	if err != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"fyne.io/fyne/v2/widget"
 	"log"
 	mrand "math/rand"
 	"net"
@@ -37,9 +38,54 @@ func main() {
 	}
 
 	privateKey, publicKey, err := crypto.GenerateKeys()
-	if err != nil {
-		log.Fatal("could not generate keys: ", err.Error())
-	}
+
+	//Private and Public key Generation or retrieval from bank
+	/*
+		keysFile, err := skv.Open("keys.db")
+		defer keysFile.Close()
+
+
+			if err == nil {
+
+				err := keysFile.Get("private", privateKey)
+				if err != nil {
+					fmt.Println("could not get private key: ", err.Error())
+					privateKey, publicKey, err = crypto.GenerateKeys()
+					if err != nil {
+						log.Fatal("could not generate keys: ", err.Error())
+					}
+					err := keysFile.Put("private", privateKey)
+					if err != nil {
+						log.Fatal("could not store private key: ", err.Error())
+					}
+
+					err = keysFile.Put("public", publicKey)
+					if err != nil {
+						log.Fatal("could not store public key: ", err.Error())
+					}
+				}
+
+				err = keysFile.Get("public", publicKey)
+				if err != nil {
+					// générer public key
+					log.Fatal("could not get public key: ", err.Error())
+				}
+			} else {
+				privateKey, publicKey, err = crypto.GenerateKeys()
+				if err != nil {
+					log.Fatal("could not generate keys: ", err.Error())
+				}
+
+				err := keysFile.Put("private", privateKey)
+				if err != nil {
+					log.Fatal("could not store private key: ", err.Error())
+				}
+
+				err = keysFile.Put("public", publicKey)
+				if err != nil {
+					log.Fatal("could not store public key: ", err.Error())
+				}
+			}*/
 
 	socket, err := udptypes.NewUDPSocket()
 	if err != nil {
@@ -93,10 +139,11 @@ func main() {
 		}.HelloBodyToBytes()
 
 		msg := udptypes.UDPMessage{
-			Id:     uint32(mrand.Int31()),
-			Type:   udptypes.Hello,
-			Length: uint16(len(msgBody)),
-			Body:   msgBody,
+			Id:         uint32(mrand.Int31()),
+			Type:       udptypes.Hello,
+			Length:     uint16(len(msgBody)),
+			Body:       msgBody,
+			PrivateKey: privateKey,
 		}
 
 		ip, _ := net.ResolveUDPAddr("udp", addresses[0])
@@ -108,10 +155,11 @@ func main() {
 		}
 
 		msg = udptypes.UDPMessage{
-			Id:     uint32(mrand.Int31()),
-			Type:   udptypes.PublicKey,
-			Length: 64,
-			Body:   crypto.FormatPublicKey(*scheduler.PublicKey),
+			Id:         uint32(mrand.Int31()),
+			Type:       udptypes.PublicKey,
+			Length:     64,
+			Body:       crypto.FormatPublicKey(*scheduler.PublicKey),
+			PrivateKey: privateKey,
 		}
 		_, err = scheduler.SendPacket(msg, ip)
 		if err != nil {
@@ -120,10 +168,11 @@ func main() {
 		}
 
 		msg = udptypes.UDPMessage{
-			Id:     uint32(mrand.Int31()),
-			Type:   udptypes.Root,
-			Length: 32,
-			Body:   scheduler.ExportedFiles.Hash[:],
+			Id:         uint32(mrand.Int31()),
+			Type:       udptypes.Root,
+			Length:     32,
+			Body:       scheduler.ExportedFiles.Hash[:],
+			PrivateKey: privateKey,
 		}
 		_, err = scheduler.SendPacket(msg, ip)
 		if err != nil {
@@ -234,10 +283,11 @@ func HelloToServer() {
 	}.HelloBodyToBytes()
 
 	msg := udptypes.UDPMessage{
-		Id:     uint32(mrand.Int31()),
-		Type:   udptypes.Hello,
-		Length: uint16(len(msgBody)),
-		Body:   msgBody,
+		Id:         uint32(mrand.Int31()),
+		Type:       udptypes.Hello,
+		Length:     uint16(len(msgBody)),
+		Body:       msgBody,
+		PrivateKey: scheduler.PrivateKey,
 	}
 
 	_, err = scheduler.SendPacket(msg, distantAddr)
