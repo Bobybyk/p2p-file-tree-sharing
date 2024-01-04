@@ -10,3 +10,5 @@
 
 #Generics
 main
+
+src/config/config.go

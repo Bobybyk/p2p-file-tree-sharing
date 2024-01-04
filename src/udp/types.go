@@ -1,6 +1,7 @@
 package udptypes
 
 import (
+	"crypto/ecdsa"
 	"net"
 	"protocoles-internet-2023/filestructure"
 	"sync"
@@ -31,11 +32,12 @@ const (
 type UDPMessageBytes []byte
 
 type UDPMessage struct {
-	Id        uint32
-	Type      uint8
-	Length    uint16
-	Body      []byte
-	Signature string
+	Id         uint32
+	Type       uint8
+	Length     uint16
+	Body       []byte
+	Signature  []byte
+	PrivateKey *ecdsa.PrivateKey //optional, if public key is provided, then the message will be signed
 }
 
 type HelloBody struct {
@@ -62,9 +64,10 @@ type SchedulerEntry struct {
 type Scheduler struct {
 	Lock           sync.Mutex
 	Socket         UDPSock
-	PacketSender   chan SchedulerEntry
 	PacketReceiver chan SchedulerEntry
-	PeerDatabase   map[string](*PeerInfo)
+	PeerDatabase   map[string]*PeerInfo
+	PrivateKey     *ecdsa.PrivateKey
+	PublicKey      *ecdsa.PublicKey
 	ExportedFiles  *filestructure.Directory
 }
 

@@ -1,5 +1,10 @@
 package udptypes
 
+import (
+	"fmt"
+	"protocoles-internet-2023/crypto"
+)
+
 func (bytes UDPMessageBytes) BytesToMessage() UDPMessage {
 
 	udpMsg := UDPMessage{}
@@ -11,6 +16,10 @@ func (bytes UDPMessageBytes) BytesToMessage() UDPMessage {
 	udpMsg.Body = make([]byte, udpMsg.Length)
 	for i := 0; i < int(udpMsg.Length); i++ {
 		udpMsg.Body[i] = bytes[i+7]
+	}
+
+	if len(bytes) == 7+int(udpMsg.Length)+64 { //mesage is signed
+		udpMsg.Signature = bytes[7+int(udpMsg.Length):]
 	}
 
 	//udpMsg.Body = bytes[7:]
@@ -34,6 +43,17 @@ func (udpMsg UDPMessage) MessageToBytes() UDPMessageBytes {
 	for i := 0; i < int(udpMsg.Length); i++ {
 		bytes[7+i] = udpMsg.Body[i]
 	}
+
+	fmt.Println(len(bytes))
+	if udpMsg.PrivateKey != nil {
+		signature, err := crypto.GenerateSignature(bytes, udpMsg.PrivateKey)
+		if err != nil {
+			fmt.Println("signature of message failed")
+		}
+		bytes = append(bytes, signature...)
+	}
+
+	fmt.Println(len(bytes))
 
 	return bytes
 }

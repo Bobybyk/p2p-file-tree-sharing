@@ -7,9 +7,7 @@ import (
 
 func NewUDPSocket() (*UDPSock, error) {
 
-	ret, err := net.ListenUDP("udp", &net.UDPAddr{
-		Port: 42069,
-	})
+	ret, err := net.ListenUDP("udp", &net.UDPAddr{})
 
 	sock := UDPSock{
 		Socket: ret,

@@ -2,12 +2,14 @@ package udptypes
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"protocoles-internet-2023/config"
+	"protocoles-internet-2023/crypto"
 	"protocoles-internet-2023/filestructure"
 	"strconv"
 	"sync"
@@ -17,11 +19,12 @@ import (
 /*
 Scheduler "constructor"
 */
-func NewScheduler(sock UDPSock, files *filestructure.Directory) *Scheduler {
+func NewScheduler(sock UDPSock, files *filestructure.Directory, prKey *ecdsa.PrivateKey, pubKey *ecdsa.PublicKey) *Scheduler {
 	sched := Scheduler{
 		Socket:         sock,
 		PeerDatabase:   make(map[string]*PeerInfo),
-		PacketSender:   make(chan SchedulerEntry),
+		PrivateKey:     prKey,
+		PublicKey:      pubKey,
 		PacketReceiver: make(chan SchedulerEntry),
 		ExportedFiles:  files,
 		Lock:           sync.Mutex{},
@@ -175,7 +178,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		}
 	case Error:
 		if config.Debug {
-			fmt.Println("Error from: ", peer.Name, "\n", string(received.Body))
+			fmt.Println("Error from: ", peer.Name, "\t", string(received.Body))
 		}
 	case Hello:
 		if config.Debug {
@@ -240,11 +243,9 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 
 				for _, child := range convNode.Data {
 					if dir, ok := child.(filestructure.Directory); ok {
-						fmt.Println(dir.Name)
 						tmp = append(tmp, []byte(expandString(dir.Name))...)
 						tmp = append(tmp, dir.Hash[:]...)
 					} else if ch, ok := child.(filestructure.Chunk); ok {
-						fmt.Println(ch.Name)
 						tmp = append(tmp, []byte(expandString(ch.Name))...)
 						tmp = append(tmp, ch.Hash[:]...)
 					} else if big, ok := child.(filestructure.Bigfile); ok {
@@ -449,9 +450,11 @@ Tells the peer that no encryption method is used (hardcoded, to change if encryp
 func (sched *Scheduler) SendPublicKeyReply(dest *net.UDPAddr, id uint32) {
 
 	msg := UDPMessage{
-		Id:     id,
-		Type:   PublicKeyReply,
-		Length: 0,
+		Id:         id,
+		Type:       PublicKeyReply,
+		Length:     64,
+		Body:       crypto.FormatPublicKey(*sched.PublicKey),
+		PrivateKey: sched.PrivateKey,
 	}
 	err := sched.Socket.SendPacket(msg, dest)
 	if err != nil {
