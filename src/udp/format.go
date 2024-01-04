@@ -28,7 +28,7 @@ func (udpMsg UDPMessage) MessageToBytes() UDPMessageBytes {
 
 	bytes[4] = udpMsg.Type
 
-	bytes[5] = byte(udpMsg.Length * 256)
+	bytes[5] = byte(udpMsg.Length >> 8)
 	bytes[6] = byte(udpMsg.Length)
 
 	for i := 0; i < int(udpMsg.Length); i++ {

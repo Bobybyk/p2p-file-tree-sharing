@@ -72,8 +72,18 @@ func loadFile(path string, name string, data []byte) (filestructure.File, error)
 			bigFile.Data = append(bigFile.Data, child)
 		}
 
-		hash := sha256.Sum256(data)
-		bigFile.Hash = hash
+		var hashTmp []byte
+
+		for _, child := range bigFile.Data {
+
+			if ch, ok := child.(filestructure.Chunk); ok {
+				hashTmp = append(hashTmp, ch.Hash[:]...)
+			} else if big, ok := child.(filestructure.Bigfile); ok {
+				hashTmp = append(hashTmp, big.Hash[:]...)
+			}
+		}
+
+		bigFile.Hash = sha256.Sum256(hashTmp)
 
 		return bigFile, nil
 	}
@@ -105,8 +115,23 @@ func loadDirectory(path string) (filestructure.File, error) {
 		}
 
 		// Compute the hash of the directory
-		hash := sha256.Sum256([]byte(node.Name))
-		node.Hash = hash
+		var hashTmp []byte
+
+		for _, child := range node.Data {
+
+			if ch, ok := child.(filestructure.Chunk); ok {
+				hashTmp = append(hashTmp, ch.Name[:]...)
+				hashTmp = append(hashTmp, ch.Hash[:]...)
+			} else if big, ok := child.(filestructure.Bigfile); ok {
+				hashTmp = append(hashTmp, big.Name[:]...)
+				hashTmp = append(hashTmp, big.Hash[:]...)
+			} else if dir, ok := child.(filestructure.Directory); ok {
+				hashTmp = append(hashTmp, dir.Name[:]...)
+				hashTmp = append(hashTmp, dir.Hash[:]...)
+			}
+		}
+
+		node.Hash = sha256.Sum256(hashTmp)
 
 		return node, nil
 	} else {

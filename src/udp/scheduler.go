@@ -35,6 +35,15 @@ func verifyDatumHash(datum DatumBody) bool {
 	return hash == datum.Hash
 }
 
+func expandString(name string) string {
+
+	for len(name) < 32 {
+		name += "\x00"
+	}
+
+	return name
+}
+
 func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) (*filestructure.Node, error) {
 
 	ipAddr, _ := net.ResolveUDPAddr("udp", ip)
@@ -189,32 +198,56 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		}
 
 		// reply with the resquested node datum
-		node := sched.ExportedFiles.GetNode([32]byte(received.Body))
+		node := (*filestructure.Node)(sched.ExportedFiles).GetNode([32]byte(received.Body))
+
 		if node != nil {
 			var nodeBytes []byte
-			switch node := node.(type) {
+			switch convNode := node.(type) {
 			case filestructure.Chunk:
-				nodeBytes = DatumBody{
-					Hash:  node.Hash,
-					Value: append([]byte{0}, node.Data...),
-				}.DatumBodyToBytes()
+				tmp := DatumBody{
+					Value: append([]byte{0}, convNode.Data...),
+				}
+				tmp.Hash = sha256.Sum256(tmp.Value)
+				nodeBytes = tmp.DatumBodyToBytes()
 			case filestructure.Bigfile:
-				nodeBytes = DatumBody{
-					Hash: node.Hash,
-				}.DatumBodyToBytes()
-				for _, child := range node.Data {
-					hash := child.(filestructure.Node).Hash
-					nodeBytes = append(nodeBytes, hash[:]...)
+				tmp := DatumBody{
+					Value: []byte{1},
 				}
+				for _, child := range convNode.Data {
+
+					if ch, ok := child.(filestructure.Chunk); ok {
+						tmp.Value = append(tmp.Value, ch.Hash[:]...)
+					} else if big, ok := child.(filestructure.Bigfile); ok {
+						tmp.Value = append(tmp.Value, big.Hash[:]...)
+					}
+				}
+
+				tmp.Hash = sha256.Sum256(tmp.Value)
+				nodeBytes = tmp.DatumBodyToBytes()
+
 			case filestructure.Directory:
-				nodeBytes = DatumBody{
-					Hash: node.Hash,
-				}.DatumBodyToBytes()
-				for _, child := range node.Data {
-					nodeBytes = append(nodeBytes, []byte(child.(filestructure.Node).Name)...)
-					hash := child.(filestructure.Node).Hash
-					nodeBytes = append(nodeBytes, hash[:]...)
+
+				tmp := []byte{2}
+
+				for _, child := range convNode.Data {
+					if dir, ok := child.(filestructure.Directory); ok {
+						fmt.Println(dir.Name)
+						tmp = append(tmp, []byte(expandString(dir.Name))...)
+						tmp = append(tmp, dir.Hash[:]...)
+					} else if ch, ok := child.(filestructure.Chunk); ok {
+						fmt.Println(ch.Name)
+						tmp = append(tmp, []byte(expandString(ch.Name))...)
+						tmp = append(tmp, ch.Hash[:]...)
+					} else if big, ok := child.(filestructure.Bigfile); ok {
+						tmp = append(tmp, []byte(expandString(big.Name))...)
+						tmp = append(tmp, big.Hash[:]...)
+					}
 				}
+				hash := sha256.Sum256(tmp)
+				final := append([]byte{}, hash[:]...)
+				final = append(final, tmp...)
+
+				nodeBytes = final
 			}
 
 			msg := UDPMessage{
@@ -223,6 +256,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 				Length: uint16(len(nodeBytes)),
 				Body:   nodeBytes,
 			}
+
 			err := sched.Socket.SendPacket(msg, distantPeer)
 			if err != nil {
 				fmt.Println("Respond Datum: ", err.Error())
