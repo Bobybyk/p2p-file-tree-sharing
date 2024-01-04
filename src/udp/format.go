@@ -18,7 +18,7 @@ func (bytes UDPMessageBytes) BytesToMessage() UDPMessage {
 		udpMsg.Body[i] = bytes[i+7]
 	}
 
-	if len(bytes) == 7+int(udpMsg.Length)+64 { //mesage is signed
+	if len(bytes) > 7+int(udpMsg.Length) { //message is signed
 		udpMsg.Signature = bytes[7+int(udpMsg.Length):]
 	}
 

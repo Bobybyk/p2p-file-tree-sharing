@@ -1,8 +1,10 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"fyne.io/fyne/v2/widget"
+	"github.com/rapidloop/skv"
 	"log"
 	mrand "math/rand"
 	"net"
@@ -37,55 +39,63 @@ func main() {
 		filestructure.PrintFileStructure(file, "", true)
 	}
 
-	privateKey, publicKey, err := crypto.GenerateKeys()
+	var privateKey *ecdsa.PrivateKey
+	var publicKey *ecdsa.PublicKey
 
 	//Private and Public key Generation or retrieval from bank
-	/*
-		keysFile, err := skv.Open("keys.db")
-		defer keysFile.Close()
+	keysFile, err := skv.Open("keys.db")
+	defer keysFile.Close()
 
+	if err == nil {
 
-			if err == nil {
+		var privateKeyString string
+		var publicKeyString string
 
-				err := keysFile.Get("private", privateKey)
-				if err != nil {
-					fmt.Println("could not get private key: ", err.Error())
-					privateKey, publicKey, err = crypto.GenerateKeys()
-					if err != nil {
-						log.Fatal("could not generate keys: ", err.Error())
-					}
-					err := keysFile.Put("private", privateKey)
-					if err != nil {
-						log.Fatal("could not store private key: ", err.Error())
-					}
+		err := keysFile.Get("private", &privateKeyString)
+		if err != nil {
+			fmt.Println("could not get private key: ", err.Error())
 
-					err = keysFile.Put("public", publicKey)
-					if err != nil {
-						log.Fatal("could not store public key: ", err.Error())
-					}
-				}
+			privateKey, publicKey, err = crypto.GenerateKeys()
+			if err != nil {
+				log.Fatal("could not generate keys: ", err.Error())
+			}
 
-				err = keysFile.Get("public", publicKey)
-				if err != nil {
-					// générer public key
-					log.Fatal("could not get public key: ", err.Error())
-				}
-			} else {
-				privateKey, publicKey, err = crypto.GenerateKeys()
-				if err != nil {
-					log.Fatal("could not generate keys: ", err.Error())
-				}
+			privateKeyString, publicKeyString = crypto.EncodeToString(privateKey, publicKey)
 
-				err := keysFile.Put("private", privateKey)
-				if err != nil {
-					log.Fatal("could not store private key: ", err.Error())
-				}
+			err := keysFile.Put("private", privateKeyString)
+			if err != nil {
+				log.Fatal("could not store private key: ", err.Error())
+			}
 
-				err = keysFile.Put("public", publicKey)
-				if err != nil {
-					log.Fatal("could not store public key: ", err.Error())
-				}
-			}*/
+			err = keysFile.Put("public", publicKeyString)
+			if err != nil {
+				log.Fatal("could not store public key: ", err.Error())
+			}
+		}
+
+		err = keysFile.Get("public", &publicKeyString)
+		if err != nil {
+			// générer public key
+			log.Fatal("could not get public key: ", err.Error())
+		}
+
+		privateKey, publicKey = crypto.DecodeFromString(privateKeyString, publicKeyString)
+	} /*else {
+		privateKey, publicKey, err = crypto.GenerateKeys()
+		if err != nil {
+			log.Fatal("could not generate keys: ", err.Error())
+		}
+
+		err := keysFile.Put("private", privateKey)
+		if err != nil {
+			log.Fatal("could not store private key: ", err.Error())
+		}
+
+		err = keysFile.Put("public", publicKey)
+		if err != nil {
+			log.Fatal("could not store public key: ", err.Error())
+		}
+	}*/
 
 	socket, err := udptypes.NewUDPSocket()
 	if err != nil {

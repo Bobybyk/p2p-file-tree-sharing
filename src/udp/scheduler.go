@@ -168,6 +168,14 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		return
 	}
 
+	if len(peer.PublicKey) > 0 && len(received.Signature) > 0 {
+		peerPuKey := crypto.ParsePublicKey(peer.PublicKey)
+		if crypto.VerifyMessage(received.MessageToBytes()[:(7+received.Length)], received.Signature, &peerPuKey) == false {
+			fmt.Println(received.Type, " Wrong packet signature")
+
+		}
+	}
+
 	distantPeer, _ := net.ResolveUDPAddr("udp", from.String())
 
 	//otherwise handle the messages
@@ -184,6 +192,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		if config.Debug {
 			fmt.Println("Hello from: " + peer.Name)
 		}
+
 		sched.SendHelloReply(distantPeer, received.Id)
 	case PublicKey:
 		if config.Debug {
@@ -191,9 +200,9 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		}
 
 		if received.Length != 0 {
-			sched.PeerDatabase[distantPeer.String()].PublicKey = received.Body
+			peer.PublicKey = received.Body
 		} else {
-			sched.PeerDatabase[distantPeer.String()].PublicKey = nil
+			peer.PublicKey = nil
 		}
 		sched.SendPublicKeyReply(distantPeer, received.Id)
 	case Root:
@@ -201,7 +210,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			fmt.Println("Root from: " + peer.Name)
 		}
 
-		sched.PeerDatabase[distantPeer.String()].Root = [32]byte(received.Body)
+		peer.Root = [32]byte(received.Body)
 		sched.SendRootReply(distantPeer, received.Id)
 	case GetDatum:
 
