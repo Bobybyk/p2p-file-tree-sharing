@@ -270,17 +270,68 @@ func main() {
 
 	buttonDownloadServer := widget.NewButton("Download server", func() {
 
-		serverIp := ""
-		for key, elem := range scheduler.PeerDatabase {
-			if elem.Name == "jch.irif.fr" {
-				serverIp = key
+		peers, err := rest.GetPeersNames(ENDPOINT)
+		if err != nil {
+			log.Fatal("GET /peers/: " + err.Error())
+		}
+
+		peerIndex := 0
+		for i := 0; i < len(peers); i++ {
+			if peers[i] == "jch.irif.fr" { //change here to change client to download
+				peerIndex = i
 				break
 			}
 		}
 
-		ip, _ := net.ResolveUDPAddr("udp", serverIp)
+		addresses, err := rest.GetPeerAddresses(ENDPOINT, peers[peerIndex])
+		if err != nil {
+			log.Fatal("Fetching peer addresses: " + err.Error())
+		}
 
-		peer := scheduler.PeerDatabase[serverIp]
+		msgBody := udptypes.HelloBody{
+			Extensions: 0,
+			Name:       config.ClientName,
+		}.HelloBodyToBytes()
+
+		msg := udptypes.UDPMessage{
+			Id:     uint32(rand.Int31()),
+			Type:   udptypes.Hello,
+			Length: uint16(len(msgBody)),
+			Body:   msgBody,
+		}
+
+		ip, _ := net.ResolveUDPAddr("udp", addresses[0])
+
+		_, err = scheduler.SendPacket(msg, ip)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		msg = udptypes.UDPMessage{
+			Id:     uint32(rand.Int31()),
+			Type:   udptypes.PublicKey,
+			Length: 0,
+		}
+		_, err = scheduler.SendPacket(msg, ip)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		msg = udptypes.UDPMessage{
+			Id:     uint32(rand.Int31()),
+			Type:   udptypes.Root,
+			Length: 32,
+			Body:   scheduler.ExportedFiles.Hash[:],
+		}
+		_, err = scheduler.SendPacket(msg, ip)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		peer := scheduler.PeerDatabase[ip.String()]
 		downloadedNode := &filestructure.Directory{}
 
 		datumRoot := udptypes.UDPMessage{
@@ -296,6 +347,10 @@ func main() {
 		}
 
 		node := packet
+		if packet.Packet.Type == udptypes.NoDatum {
+			fmt.Println("No datum received")
+			return
+		}
 		body := udptypes.BytesToDatumBody(node.Packet.Body)
 
 		for i := 1; i < len(body.Value); i += 64 {
@@ -309,7 +364,7 @@ func main() {
 
 		downloadedNode.Name = peer.Name + "-" + time.Now().Format("2006-01-02_15-04")
 
-		newNode, err := scheduler.DownloadNode((*filestructure.Node)(downloadedNode), serverIp)
+		newNode, err := scheduler.DownloadNode((*filestructure.Node)(downloadedNode), ip.String())
 		if err != nil {
 			fmt.Println("Download files:", err.Error())
 			return
