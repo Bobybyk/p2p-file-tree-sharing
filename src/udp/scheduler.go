@@ -1,6 +1,7 @@
 package udptypes
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -262,7 +263,12 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 	case RootReply:
 		if config.Debug {
 			fmt.Println("RootReply from: " + peer.Name)
+			emptyHash := sha256.Sum256([]byte(""))
+			if bytes.Equal(emptyHash[:], received.Body) {
+				fmt.Println("The peer does not export any files")
+			}
 		}
+		sched.PeerDatabase[distantPeer.String()].Root = [32]byte(received.Body)
 		entry := SchedulerEntry{
 			From:   from,
 			Time:   time.Now(),
@@ -417,13 +423,11 @@ func (sched *Scheduler) SendPublicKeyReply(dest *net.UDPAddr, id uint32) {
 
 func (sched *Scheduler) SendRootReply(dest *net.UDPAddr, id uint32) {
 
-	emptyHash := sha256.Sum256([]byte(""))
-
 	msg := UDPMessage{
 		Id:     id,
 		Type:   RootReply,
 		Length: 32,
-		Body:   emptyHash[:],
+		Body:   sched.ExportedFiles.Hash[:],
 	}
 	err := sched.Socket.SendPacket(msg, dest)
 	if err != nil {
