@@ -46,6 +46,15 @@ func expandString(name string) string {
 
 func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) (*filestructure.Node, error) {
 
+	var acc []byte
+	for _, child := range node.Children {
+		acc = append(acc, child.Hash[:]...)
+	}
+	b := sha256.Sum256(acc)
+	if bytes.Equal(b[:], node.Hash[:]) {
+		return nil, errors.New("merkle tree could not verify hash")
+	}
+
 	ipAddr, _ := net.ResolveUDPAddr("udp", ip)
 
 	getDatum := UDPMessage{
