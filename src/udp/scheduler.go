@@ -424,10 +424,12 @@ func (sched *Scheduler) SendPacket(message UDPMessage, dest *net.UDPAddr) (Sched
 }
 
 func (sched *Scheduler) SendHelloReply(dest *net.UDPAddr, id uint32) {
+
 	body := HelloBody{
 		Name:       config.ClientName,
 		Extensions: 0,
 	}.HelloBodyToBytes()
+
 	msg := UDPMessage{
 		Id:     id,
 		Type:   HelloReply,
@@ -470,10 +472,11 @@ func (sched *Scheduler) SendPublicKeyReply(dest *net.UDPAddr, id uint32) {
 func (sched *Scheduler) SendRootReply(dest *net.UDPAddr, id uint32) {
 
 	msg := UDPMessage{
-		Id:     id,
-		Type:   RootReply,
-		Length: 32,
-		Body:   sched.ExportedFiles.Hash[:],
+		Id:         id,
+		Type:       RootReply,
+		Length:     32,
+		Body:       sched.ExportedFiles.Hash[:],
+		PrivateKey: sched.PrivateKey,
 	}
 	err := sched.Socket.SendPacket(msg, dest)
 	if err != nil {
