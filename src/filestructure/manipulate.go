@@ -1,6 +1,7 @@
 package filestructure
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"os"
@@ -16,6 +17,15 @@ const MinChildren = 2
 // nombre max de fils d'un bigfile
 const MaxChildren = 32
 
+func ExpandString(name string) string {
+
+	for len(name) < 32 {
+		name += "\x00"
+	}
+
+	return name
+}
+
 // Charge le fichier, à partir du chemin donné, et de ses enfants (si c'est un big file)
 func loadFile(path string, name string, data []byte) (File, error) {
 	if len(data) <= ChunkSize {
@@ -24,7 +34,7 @@ func loadFile(path string, name string, data []byte) (File, error) {
 			Data: data,
 		}
 
-		hash := sha256.Sum256(chunk.Data)
+		hash := sha256.Sum256(append([]byte{0}, chunk.Data...))
 		chunk.Hash = hash
 
 		return chunk, nil
@@ -63,7 +73,7 @@ func loadFile(path string, name string, data []byte) (File, error) {
 			}
 		}
 
-		bigFile.Hash = sha256.Sum256(hashTmp)
+		bigFile.Hash = sha256.Sum256(append([]byte{1}, hashTmp[:]...))
 
 		return bigFile, nil
 	}
@@ -100,18 +110,18 @@ func LoadDirectory(path string) (File, error) {
 		for _, child := range node.Data {
 
 			if ch, ok := child.(Chunk); ok {
-				hashTmp = append(hashTmp, ch.Name[:]...)
+				hashTmp = append(hashTmp, []byte(ExpandString(ch.Name))...)
 				hashTmp = append(hashTmp, ch.Hash[:]...)
 			} else if big, ok := child.(Bigfile); ok {
-				hashTmp = append(hashTmp, big.Name[:]...)
+				hashTmp = append(hashTmp, []byte(ExpandString(big.Name))...)
 				hashTmp = append(hashTmp, big.Hash[:]...)
 			} else if dir, ok := child.(Directory); ok {
-				hashTmp = append(hashTmp, dir.Name[:]...)
+				hashTmp = append(hashTmp, []byte(ExpandString(dir.Name))...)
 				hashTmp = append(hashTmp, dir.Hash[:]...)
 			}
 		}
 
-		node.Hash = sha256.Sum256(hashTmp)
+		node.Hash = sha256.Sum256(append([]byte{2}, hashTmp[:]...))
 
 		return node, nil
 	} else {
@@ -126,21 +136,21 @@ func LoadDirectory(path string) (File, error) {
 
 func (root *Node) GetNode(hash [32]byte) File {
 
-	if root.Hash == hash {
+	if bytes.Equal(root.Hash[:], hash[:]) {
 		return (Directory)(*root)
 	}
 
 	for i := 0; i < len(root.Data); i++ {
 		if ch, ok := root.Data[i].(Chunk); ok {
-			if ch.Hash == hash {
+			if bytes.Equal(ch.Hash[:], hash[:]) {
 				return ch
 			}
 		} else if dir, ok := root.Data[i].(Directory); ok {
-			if dir.Hash == hash {
+			if bytes.Equal(dir.Hash[:], hash[:]) {
 				return dir
 			}
 		} else if big, ok := root.Data[i].(Bigfile); ok {
-			if big.Hash == hash {
+			if bytes.Equal(big.Hash[:], hash[:]) {
 				return big
 			}
 		}

@@ -53,7 +53,7 @@ func main() {
 
 		err := keysFile.Get("private", &privateKeyString)
 		if err != nil {
-			fmt.Println("could not get private key: ", err.Error())
+			fmt.Println("could not get private key, generating new pair ", err.Error())
 
 			privateKey, publicKey, err = crypto.GenerateKeys()
 			if err != nil {
@@ -80,22 +80,7 @@ func main() {
 		}
 
 		privateKey, publicKey = crypto.DecodeFromString(privateKeyString, publicKeyString)
-	} /*else {
-		privateKey, publicKey, err = crypto.GenerateKeys()
-		if err != nil {
-			log.Fatal("could not generate keys: ", err.Error())
-		}
-
-		err := keysFile.Put("private", privateKey)
-		if err != nil {
-			log.Fatal("could not store private key: ", err.Error())
-		}
-
-		err = keysFile.Put("public", publicKey)
-		if err != nil {
-			log.Fatal("could not store public key: ", err.Error())
-		}
-	}*/
+	}
 
 	socket, err := udptypes.NewUDPSocket()
 	if err != nil {
@@ -278,7 +263,8 @@ func HelloToServer() {
 
 	addresses, err := rest.GetPeerAddresses(ENDPOINT, peers[serverIndex])
 	if err != nil {
-		log.Fatal("Fetching peer addresses: " + err.Error())
+		log.Println("Fetching peer addresses: " + err.Error())
+		return
 	}
 
 	distantAddr, err := net.ResolveUDPAddr("udp", addresses[0])
@@ -335,7 +321,7 @@ func makeMenu() *fyne.MainMenu {
 func refreshPeersNames() {
 	peersNamesList, err := rest.GetPeersNames(ENDPOINT)
 	if err != nil {
-		log.Fatal("Fetching peers names: " + err.Error())
+		fmt.Println("Fetching peers names: " + err.Error())
 	}
 
 	total := ""

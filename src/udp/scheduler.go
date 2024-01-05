@@ -38,15 +38,6 @@ func verifyDatumHash(datum DatumBody) bool {
 	return hash == datum.Hash
 }
 
-func expandString(name string) string {
-
-	for len(name) < 32 {
-		name += "\x00"
-	}
-
-	return name
-}
-
 func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) (*filestructure.Node, error) {
 
 	var acc []byte
@@ -171,8 +162,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 	if len(peer.PublicKey) > 0 && len(received.Signature) > 0 {
 		peerPuKey := crypto.ParsePublicKey(peer.PublicKey)
 		if crypto.VerifyMessage(received.MessageToBytes()[:(7+received.Length)], received.Signature, &peerPuKey) == false {
-			fmt.Println(received.Type, " Wrong packet signature")
-
+			fmt.Println("\n", received.Type, " Wrong packet signature")
 		}
 	}
 
@@ -228,7 +218,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 				tmp := DatumBody{
 					Value: append([]byte{0}, convNode.Data...),
 				}
-				tmp.Hash = sha256.Sum256(tmp.Value)
+				tmp.Hash = sha256.Sum256(tmp.Value[:])
 				nodeBytes = tmp.DatumBodyToBytes()
 			case filestructure.Bigfile:
 				tmp := DatumBody{
@@ -243,30 +233,29 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 					}
 				}
 
-				tmp.Hash = sha256.Sum256(tmp.Value)
+				tmp.Hash = sha256.Sum256(tmp.Value[:])
 				nodeBytes = tmp.DatumBodyToBytes()
 
 			case filestructure.Directory:
-
-				tmp := []byte{2}
+				tmp := DatumBody{
+					Value: []byte{2},
+				}
 
 				for _, child := range convNode.Data {
 					if dir, ok := child.(filestructure.Directory); ok {
-						tmp = append(tmp, []byte(expandString(dir.Name))...)
-						tmp = append(tmp, dir.Hash[:]...)
+						tmp.Value = append(tmp.Value, []byte(filestructure.ExpandString(dir.Name))...)
+						tmp.Value = append(tmp.Value, dir.Hash[:]...)
 					} else if ch, ok := child.(filestructure.Chunk); ok {
-						tmp = append(tmp, []byte(expandString(ch.Name))...)
-						tmp = append(tmp, ch.Hash[:]...)
+						tmp.Value = append(tmp.Value, []byte(filestructure.ExpandString(ch.Name))...)
+						tmp.Value = append(tmp.Value, ch.Hash[:]...)
 					} else if big, ok := child.(filestructure.Bigfile); ok {
-						tmp = append(tmp, []byte(expandString(big.Name))...)
-						tmp = append(tmp, big.Hash[:]...)
+						tmp.Value = append(tmp.Value, []byte(filestructure.ExpandString(big.Name))...)
+						tmp.Value = append(tmp.Value, big.Hash[:]...)
 					}
 				}
-				hash := sha256.Sum256(tmp)
-				final := append([]byte{}, hash[:]...)
-				final = append(final, tmp...)
+				tmp.Hash = sha256.Sum256(tmp.Value[:])
 
-				nodeBytes = final
+				nodeBytes = tmp.DatumBodyToBytes()
 			}
 
 			msg := UDPMessage{
