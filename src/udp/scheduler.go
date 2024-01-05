@@ -2,12 +2,14 @@ package udptypes
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"protocoles-internet-2023/config"
+	"protocoles-internet-2023/crypto"
 	"protocoles-internet-2023/filestructure"
 	"strconv"
 	"sync"
@@ -17,11 +19,12 @@ import (
 /*
 Scheduler "constructor"
 */
-func NewScheduler(sock UDPSock, files *filestructure.Directory) *Scheduler {
+func NewScheduler(sock UDPSock, files *filestructure.Directory, prKey *ecdsa.PrivateKey, pubKey *ecdsa.PublicKey) *Scheduler {
 	sched := Scheduler{
 		Socket:         sock,
 		PeerDatabase:   make(map[string]*PeerInfo),
-		PacketSender:   make(chan SchedulerEntry),
+		PrivateKey:     prKey,
+		PublicKey:      pubKey,
 		PacketReceiver: make(chan SchedulerEntry),
 		ExportedFiles:  files,
 		Lock:           sync.Mutex{},
@@ -33,15 +36,6 @@ func NewScheduler(sock UDPSock, files *filestructure.Directory) *Scheduler {
 func verifyDatumHash(datum DatumBody) bool {
 	hash := sha256.Sum256(datum.Value)
 	return hash == datum.Hash
-}
-
-func expandString(name string) string {
-
-	for len(name) < 32 {
-		name += "\x00"
-	}
-
-	return name
 }
 
 func (sched *Scheduler) DownloadNode(node *filestructure.Node, ip string) (*filestructure.Node, error) {
@@ -165,6 +159,14 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		return
 	}
 
+	if len(peer.PublicKey) > 0 && len(received.Signature) > 0 {
+		peerPuKey := crypto.ParsePublicKey(peer.PublicKey)
+		if crypto.VerifyMessage(received.MessageToBytes()[:7+received.Length], received.Signature, &peerPuKey) == false {
+			fmt.Println("\n", received.Type, " Wrong packet signature")
+			return
+		}
+	}
+
 	distantPeer, _ := net.ResolveUDPAddr("udp", from.String())
 
 	//otherwise handle the messages
@@ -175,12 +177,13 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		}
 	case Error:
 		if config.Debug {
-			fmt.Println("Error from: ", peer.Name, "\n", string(received.Body))
+			fmt.Println("Error from: ", peer.Name, "\t", string(received.Body))
 		}
 	case Hello:
 		if config.Debug {
 			fmt.Println("Hello from: " + peer.Name)
 		}
+
 		sched.SendHelloReply(distantPeer, received.Id)
 	case PublicKey:
 		if config.Debug {
@@ -188,9 +191,9 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		}
 
 		if received.Length != 0 {
-			sched.PeerDatabase[distantPeer.String()].PublicKey = received.Body
+			peer.PublicKey = received.Body
 		} else {
-			sched.PeerDatabase[distantPeer.String()].PublicKey = nil
+			peer.PublicKey = nil
 		}
 		sched.SendPublicKeyReply(distantPeer, received.Id)
 	case Root:
@@ -198,7 +201,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			fmt.Println("Root from: " + peer.Name)
 		}
 
-		sched.PeerDatabase[distantPeer.String()].Root = [32]byte(received.Body)
+		peer.Root = [32]byte(received.Body)
 		sched.SendRootReply(distantPeer, received.Id)
 	case GetDatum:
 
@@ -216,7 +219,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 				tmp := DatumBody{
 					Value: append([]byte{0}, convNode.Data...),
 				}
-				tmp.Hash = sha256.Sum256(tmp.Value)
+				tmp.Hash = sha256.Sum256(tmp.Value[:])
 				nodeBytes = tmp.DatumBodyToBytes()
 			case filestructure.Bigfile:
 				tmp := DatumBody{
@@ -231,32 +234,29 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 					}
 				}
 
-				tmp.Hash = sha256.Sum256(tmp.Value)
+				tmp.Hash = sha256.Sum256(tmp.Value[:])
 				nodeBytes = tmp.DatumBodyToBytes()
 
 			case filestructure.Directory:
-
-				tmp := []byte{2}
+				tmp := DatumBody{
+					Value: []byte{2},
+				}
 
 				for _, child := range convNode.Data {
 					if dir, ok := child.(filestructure.Directory); ok {
-						fmt.Println(dir.Name)
-						tmp = append(tmp, []byte(expandString(dir.Name))...)
-						tmp = append(tmp, dir.Hash[:]...)
+						tmp.Value = append(tmp.Value, []byte(filestructure.ExpandString(dir.Name))...)
+						tmp.Value = append(tmp.Value, dir.Hash[:]...)
 					} else if ch, ok := child.(filestructure.Chunk); ok {
-						fmt.Println(ch.Name)
-						tmp = append(tmp, []byte(expandString(ch.Name))...)
-						tmp = append(tmp, ch.Hash[:]...)
+						tmp.Value = append(tmp.Value, []byte(filestructure.ExpandString(ch.Name))...)
+						tmp.Value = append(tmp.Value, ch.Hash[:]...)
 					} else if big, ok := child.(filestructure.Bigfile); ok {
-						tmp = append(tmp, []byte(expandString(big.Name))...)
-						tmp = append(tmp, big.Hash[:]...)
+						tmp.Value = append(tmp.Value, []byte(filestructure.ExpandString(big.Name))...)
+						tmp.Value = append(tmp.Value, big.Hash[:]...)
 					}
 				}
-				hash := sha256.Sum256(tmp)
-				final := append([]byte{}, hash[:]...)
-				final = append(final, tmp...)
+				tmp.Hash = sha256.Sum256(tmp.Value[:])
 
-				nodeBytes = final
+				nodeBytes = tmp.DatumBodyToBytes()
 			}
 
 			msg := UDPMessage{
@@ -297,6 +297,13 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		if config.Debug {
 			fmt.Println("PublicKey from: " + peer.Name)
 		}
+
+		if received.Length != 0 {
+			peer.PublicKey = received.Body
+		} else {
+			peer.PublicKey = nil
+		}
+
 		entry := SchedulerEntry{
 			From:   from,
 			Time:   time.Now(),
@@ -423,15 +430,18 @@ func (sched *Scheduler) SendPacket(message UDPMessage, dest *net.UDPAddr) (Sched
 }
 
 func (sched *Scheduler) SendHelloReply(dest *net.UDPAddr, id uint32) {
+
 	body := HelloBody{
 		Name:       config.ClientName,
 		Extensions: 0,
 	}.HelloBodyToBytes()
+
 	msg := UDPMessage{
-		Id:     id,
-		Type:   HelloReply,
-		Length: uint16(len(body)),
-		Body:   body,
+		Id:         id,
+		Type:       HelloReply,
+		Length:     uint16(len(body)),
+		Body:       body,
+		PrivateKey: sched.PrivateKey,
 	}
 	err := sched.Socket.SendPacket(msg, dest)
 	if err != nil {
@@ -449,9 +459,11 @@ Tells the peer that no encryption method is used (hardcoded, to change if encryp
 func (sched *Scheduler) SendPublicKeyReply(dest *net.UDPAddr, id uint32) {
 
 	msg := UDPMessage{
-		Id:     id,
-		Type:   PublicKeyReply,
-		Length: 0,
+		Id:         id,
+		Type:       PublicKeyReply,
+		Length:     64,
+		Body:       crypto.FormatPublicKey(*sched.PublicKey),
+		PrivateKey: sched.PrivateKey,
 	}
 	err := sched.Socket.SendPacket(msg, dest)
 	if err != nil {
@@ -467,10 +479,11 @@ func (sched *Scheduler) SendPublicKeyReply(dest *net.UDPAddr, id uint32) {
 func (sched *Scheduler) SendRootReply(dest *net.UDPAddr, id uint32) {
 
 	msg := UDPMessage{
-		Id:     id,
-		Type:   RootReply,
-		Length: 32,
-		Body:   sched.ExportedFiles.Hash[:],
+		Id:         id,
+		Type:       RootReply,
+		Length:     32,
+		Body:       sched.ExportedFiles.Hash[:],
+		PrivateKey: sched.PrivateKey,
 	}
 	err := sched.Socket.SendPacket(msg, dest)
 	if err != nil {
