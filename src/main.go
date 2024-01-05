@@ -3,8 +3,6 @@ package main
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"fyne.io/fyne/v2/widget"
-	"github.com/rapidloop/skv"
 	"log"
 	mrand "math/rand"
 	"net"
@@ -16,10 +14,12 @@ import (
 	udptypes "protocoles-internet-2023/udp"
 	"time"
 
+	"fyne.io/fyne/v2/widget"
+	"github.com/rapidloop/skv"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 )
 
 var ENDPOINT = "https://jch.irif.fr:8443"
