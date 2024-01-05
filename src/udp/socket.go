@@ -43,7 +43,7 @@ func (sock *UDPSock) ReceivePacket() (UDPMessage, net.Addr, error) {
 		err = errors.New("message truncated")
 	}
 
-	msg := received.BytesToMessage()
+	msg := received[:sizeReceived].BytesToMessage()
 
 	return msg, from, err
 }

@@ -161,8 +161,9 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 
 	if len(peer.PublicKey) > 0 && len(received.Signature) > 0 {
 		peerPuKey := crypto.ParsePublicKey(peer.PublicKey)
-		if crypto.VerifyMessage(received.MessageToBytes()[:(7+received.Length)], received.Signature, &peerPuKey) == false {
+		if crypto.VerifyMessage(received.MessageToBytes()[:7+received.Length], received.Signature, &peerPuKey) == false {
 			fmt.Println("\n", received.Type, " Wrong packet signature")
+			return
 		}
 	}
 
@@ -296,6 +297,13 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		if config.Debug {
 			fmt.Println("PublicKey from: " + peer.Name)
 		}
+
+		if received.Length != 0 {
+			peer.PublicKey = received.Body
+		} else {
+			peer.PublicKey = nil
+		}
+
 		entry := SchedulerEntry{
 			From:   from,
 			Time:   time.Now(),
