@@ -330,7 +330,6 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			if config.Debug {
 				fmt.Println("Invalid hash for datum")
 			}
-			return
 		}
 		if config.Debug {
 			body := BytesToDatumBody(received.Body)

@@ -7,9 +7,15 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"log"
+	mrand "math/rand"
 	"net"
+	"protocoles-internet-2023/config"
+	"protocoles-internet-2023/crypto"
+	"protocoles-internet-2023/filestructure"
 	"protocoles-internet-2023/rest"
 	udptypes "protocoles-internet-2023/udp"
+	"time"
 )
 
 var peersNames []string
@@ -22,7 +28,7 @@ func Init(scheduler *udptypes.Scheduler, ENDPOINT string) fyne.Window {
 	menu := MakeMenu()
 	window.SetMainMenu(menu)
 
-	var selectedPeer string
+	selectedPeer := ""
 	peerNamesListWidget := widget.NewList(
 		func() int {
 			return len(peersNames)
@@ -46,6 +52,11 @@ func Init(scheduler *udptypes.Scheduler, ENDPOINT string) fyne.Window {
 
 	buttonHello := widget.NewButton("Hello", func() {
 
+		if selectedPeer == "" {
+			fmt.Println("no peer selected")
+			return
+		}
+
 		ipString, err := rest.GetPeerAddresses(ENDPOINT, selectedPeer)
 		if err != nil {
 			fmt.Println("Hello button: ", err.Error())
@@ -56,6 +67,11 @@ func Init(scheduler *udptypes.Scheduler, ENDPOINT string) fyne.Window {
 		scheduler.SendHello(ip)
 	})
 	buttonPublicKey := widget.NewButton("PublicKey", func() {
+
+		if selectedPeer == "" {
+			fmt.Println("no peer selected")
+			return
+		}
 
 		ipString, err := rest.GetPeerAddresses(ENDPOINT, selectedPeer)
 		if err != nil {
@@ -68,6 +84,11 @@ func Init(scheduler *udptypes.Scheduler, ENDPOINT string) fyne.Window {
 	})
 	buttonRoot := widget.NewButton("Root", func() {
 
+		if selectedPeer == "" {
+			fmt.Println("no peer selected")
+			return
+		}
+
 		ipString, err := rest.GetPeerAddresses(ENDPOINT, selectedPeer)
 		if err != nil {
 			fmt.Println("Root button: ", err.Error())
@@ -79,6 +100,11 @@ func Init(scheduler *udptypes.Scheduler, ENDPOINT string) fyne.Window {
 	})
 	buttonNoOp := widget.NewButton("NoOp", func() {
 
+		if selectedPeer == "" {
+			fmt.Println("no peer selected")
+			return
+		}
+
 		ipString, err := rest.GetPeerAddresses(ENDPOINT, selectedPeer)
 		if err != nil {
 			fmt.Println("NoOp button: ", err.Error())
@@ -89,8 +115,107 @@ func Init(scheduler *udptypes.Scheduler, ENDPOINT string) fyne.Window {
 		scheduler.SendNoOp(ip)
 	})
 	buttonDownload := widget.NewButton("Download files", func() {
-		fmt.Println("Download Files")
-		fmt.Println(selectedPeer)
+		if selectedPeer == "" {
+			fmt.Println("no peer selected")
+			return
+		}
+
+		ipString, err := rest.GetPeerAddresses(ENDPOINT, selectedPeer)
+		if err != nil {
+			fmt.Println("NoOp button: ", err.Error())
+			return
+		}
+		peerIP, err := net.ResolveUDPAddr("udp", ipString[0])
+
+		msgBody := udptypes.HelloBody{
+			Extensions: 0,
+			Name:       config.ClientName,
+		}.HelloBodyToBytes()
+
+		msg := udptypes.UDPMessage{
+			Id:         uint32(mrand.Int31()),
+			Type:       udptypes.Hello,
+			Length:     uint16(len(msgBody)),
+			Body:       msgBody,
+			PrivateKey: scheduler.PrivateKey,
+		}
+
+		_, err = scheduler.SendPacket(msg, peerIP)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		msg = udptypes.UDPMessage{
+			Id:         uint32(mrand.Int31()),
+			Type:       udptypes.PublicKey,
+			Length:     64,
+			Body:       crypto.FormatPublicKey(*scheduler.PublicKey),
+			PrivateKey: scheduler.PrivateKey,
+		}
+		_, err = scheduler.SendPacket(msg, peerIP)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		msg = udptypes.UDPMessage{
+			Id:         uint32(mrand.Int31()),
+			Type:       udptypes.Root,
+			Length:     32,
+			Body:       scheduler.ExportedFiles.Hash[:],
+			PrivateKey: scheduler.PrivateKey,
+		}
+		_, err = scheduler.SendPacket(msg, peerIP)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		peer := scheduler.PeerDatabase[peerIP.String()]
+		downloadedNode := &filestructure.Directory{}
+
+		datumRoot := udptypes.UDPMessage{
+			Id:     uint32(mrand.Int31()),
+			Type:   udptypes.GetDatum,
+			Length: 32,
+			Body:   peer.Root[:],
+		}
+
+		packet, err := scheduler.SendPacket(datumRoot, peerIP)
+		if err != nil {
+			log.Fatal("Could not send GetDatum packet: ", err.Error())
+		}
+
+		node := packet
+		if packet.Packet.Type == udptypes.NoDatum {
+			fmt.Println("No datum received")
+			return
+		}
+		body := udptypes.BytesToDatumBody(node.Packet.Body)
+
+		for i := 1; i < len(body.Value); i += 64 {
+			child := filestructure.Child{
+				Name: string(body.Value[i : i+32]),
+				Hash: [32]byte(body.Value[i+32 : i+64]),
+			}
+
+			downloadedNode.Children = append(downloadedNode.Children, child)
+		}
+
+		downloadedNode.Name = peer.Name + "-" + time.Now().Format("2006-01-02_15-04")
+
+		newNode, err := scheduler.DownloadNode((*filestructure.Node)(downloadedNode), peerIP.String())
+		if err != nil {
+			fmt.Println("Download files:", err.Error())
+			return
+		}
+
+		err = filestructure.SaveFileStructure("../"+newNode.Name, *(*filestructure.Directory)(newNode))
+		if err != nil {
+			fmt.Println("saving file structure: ", err.Error())
+		}
+
 	})
 
 	vboxButtons := container.New(layout.NewVBoxLayout(), buttonHello, buttonRoot, buttonNoOp, buttonPublicKey, buttonDownload)
