@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+func trimEmptyLine(slice []string) []string {
+	var newSlice []string
+	for _, val := range slice {
+		if val != "" {
+			newSlice = append(newSlice, val)
+		}
+	}
+
+	return newSlice
+}
+
 func SendGet(url string) (string, error) {
 
 	transport := &*http.DefaultTransport.(*http.Transport)
@@ -38,7 +49,7 @@ func GetPeersNames(endpoint string) ([]string, error) {
 		return nil, err
 	}
 
-	return strings.Split(res, "\n"), nil
+	return trimEmptyLine(strings.Split(res, "\n")), nil
 }
 
 func GetPeerAddresses(endpoint string, peerName string) ([]string, error) {
@@ -50,7 +61,7 @@ func GetPeerAddresses(endpoint string, peerName string) ([]string, error) {
 	return strings.Split(res, "\n"), nil
 }
 
-func GetPeerKeys(endpoint string, peerName string) ([]string, error) {
+func GetPeerKey(endpoint string, peerName string) ([]string, error) {
 	res, err := SendGet(endpoint + "/peers/" + peerName + "/key")
 	if err != nil {
 		return nil, err
@@ -65,5 +76,5 @@ func GetPeerRoot(endpoint string, peerName string) ([]string, error) {
 		return nil, err
 	}
 
-	return strings.Split(res, "\n"), nil
+	return trimEmptyLine(strings.Split(res, "\n")), nil
 }

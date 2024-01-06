@@ -295,7 +295,7 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 		sched.PacketReceiver <- entry
 	case PublicKeyReply:
 		if config.Debug {
-			fmt.Println("PublicKey from: " + peer.Name)
+			fmt.Println("PublicKeyReply from: " + peer.Name)
 		}
 
 		if received.Length != 0 {
@@ -367,6 +367,12 @@ func (sched *Scheduler) HandleReceive(received UDPMessage, from net.Addr) {
 			Packet: received,
 		}
 		sched.PacketReceiver <- entry
+
+	case ErrorReply:
+		if config.Debug {
+			fmt.Println("ErrorReply from: " + peer.Name)
+			fmt.Println(string(received.Body))
+		}
 	default:
 		fmt.Println(received.Type, " from: ", peer.Name)
 	}
@@ -407,6 +413,7 @@ func (sched *Scheduler) SendPacket(message UDPMessage, dest *net.UDPAddr) (Sched
 	timeout := 1
 	for i := 0; i < 3; i++ {
 
+		sendTime := time.Now()
 		err := sched.Socket.SendPacket(message, dest)
 		if err == nil && config.DebugSpam {
 			fmt.Println("Message sent on socket")
@@ -417,6 +424,8 @@ func (sched *Scheduler) SendPacket(message UDPMessage, dest *net.UDPAddr) (Sched
 			if response.Packet.Id != message.Id {
 				fmt.Println("wrong response ID\nExpected: " + strconv.Itoa(int(message.Id)) + "\nReceived: " + strconv.Itoa(int(response.Packet.Id)))
 			} else {
+				receivedTime := time.Now()
+				sched.PeerDatabase[dest.String()].RTT = receivedTime.Sub(sendTime).Milliseconds()
 				return response, nil
 			}
 		case <-time.After(time.Second * time.Duration(timeout)):
@@ -427,73 +436,6 @@ func (sched *Scheduler) SendPacket(message UDPMessage, dest *net.UDPAddr) (Sched
 		}
 	}
 	return SchedulerEntry{}, errors.New("no response")
-}
-
-func (sched *Scheduler) SendHelloReply(dest *net.UDPAddr, id uint32) {
-
-	body := HelloBody{
-		Name:       config.ClientName,
-		Extensions: 0,
-	}.HelloBodyToBytes()
-
-	msg := UDPMessage{
-		Id:         id,
-		Type:       HelloReply,
-		Length:     uint16(len(body)),
-		Body:       body,
-		PrivateKey: sched.PrivateKey,
-	}
-	err := sched.Socket.SendPacket(msg, dest)
-	if err != nil {
-		return
-	}
-
-	if config.Debug {
-		fmt.Println("HelloReply sent to: " + sched.PeerDatabase[dest.String()].Name)
-	}
-}
-
-/*
-Tells the peer that no encryption method is used (hardcoded, to change if encryption is implemented later)
-*/
-func (sched *Scheduler) SendPublicKeyReply(dest *net.UDPAddr, id uint32) {
-
-	msg := UDPMessage{
-		Id:         id,
-		Type:       PublicKeyReply,
-		Length:     64,
-		Body:       crypto.FormatPublicKey(*sched.PublicKey),
-		PrivateKey: sched.PrivateKey,
-	}
-	err := sched.Socket.SendPacket(msg, dest)
-	if err != nil {
-		fmt.Println("SendPublicKeyReply: ", err.Error())
-		return
-	}
-
-	if config.Debug {
-		fmt.Println("PublicKeyReply sent to: " + sched.PeerDatabase[dest.String()].Name)
-	}
-}
-
-func (sched *Scheduler) SendRootReply(dest *net.UDPAddr, id uint32) {
-
-	msg := UDPMessage{
-		Id:         id,
-		Type:       RootReply,
-		Length:     32,
-		Body:       sched.ExportedFiles.Hash[:],
-		PrivateKey: sched.PrivateKey,
-	}
-	err := sched.Socket.SendPacket(msg, dest)
-	if err != nil {
-		fmt.Println("SendRootReply: ", err.Error())
-		return
-	}
-
-	if config.Debug {
-		fmt.Println("RootReply sent to: " + sched.PeerDatabase[dest.String()].Name)
-	}
 }
 
 /*
