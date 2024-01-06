@@ -75,4 +75,5 @@ type PeerInfo struct {
 	Name      string
 	PublicKey []byte
 	Root      [32]byte
+	RTT       int64
 }
